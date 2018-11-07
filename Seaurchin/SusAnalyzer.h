@@ -36,6 +36,7 @@ enum class SusNoteType : uint16_t {
     Invisible,      // 不可視
     MeasureLine,    // 小節線
     Grounded,       // Airの足が個別に描画される
+    StartPosition,  // レーン奥での開始位置(オンゲキ用)
 };
 
 struct SusRelativeNoteTime {
@@ -104,6 +105,7 @@ public:
 enum class SusMetaDataFlags : uint16_t {
     DisableMetronome,
     EnableDrawPriority,
+    EnableMovingLane,
 };
 
 struct SusMetaData {
@@ -157,6 +159,20 @@ struct SusRawNoteData {
     };
     uint8_t Extra;
     std::shared_ptr<SusNoteExtraAttribute> ExtraAttribute;
+    
+    bool operator==(const SusRawNoteData& b) const
+    {
+        if (Type != b.Type) return false;
+        if (Timeline != b.Timeline) return false;
+        if (DefinitionNumber != b.DefinitionNumber) return false;
+        if (Extra != b.Extra) return false;
+        if (ExtraAttribute != b.ExtraAttribute) return false;
+        return true;
+    }
+    bool operator!=(const SusRawNoteData& b) const
+    {
+        return !(*this == b);
+    }
 };
 
 struct SusDrawableNoteData {
@@ -166,6 +182,7 @@ struct SusDrawableNoteData {
     std::shared_ptr<SusNoteExtraAttribute> ExtraAttribute;
     uint8_t StartLane = 0;
     uint8_t Length = 0;
+    float CenterAtZero = 0;
 
     //実描画位置
     double ModifiedPosition = 0;

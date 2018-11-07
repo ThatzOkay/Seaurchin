@@ -50,17 +50,17 @@ enum class JudgeSoundType {
 };
 
 enum class PlayingState {
-    ScoreNotLoaded,     // 何も始まっていない
-    BgmNotLoaded,       // 譜面だけ読み込んだ
-    ReadyToStart,       // 読み込みが終わったので始められる
-    Paused,             // ポーズ中
-    ReadyCounting,      // BGM読み終わって前カウントしてる
-    BgmPreceding,       // 前カウント中だけどBGM始まってる
-    OnlyScoreOngoing,   // 譜面始まったけどBGMまだ
-    BothOngoing,        // 両方再生してる
-    ScoreLasting,       // 譜面残ってる
-    BgmLasting,         // 曲残ってる
-    Completed,          // 全部終わった
+    ScoreNotLoaded,
+    BgmNotLoaded,
+    ReadyToStart,
+    Paused,
+    ReadyCounting,
+    BgmPreceding,
+    OnlyScoreOngoing,
+    BothOngoing,
+    ScoreLasting,
+    BgmLasting,
+    Completed,
 };
 
 enum class AirDrawType {
@@ -104,7 +104,7 @@ protected:
     bool usePrioritySort = false;
     bool hasEnded = false;
 
-    double cameraZ = -340, cameraY = 620, cameraTargetZ = 580; // スクショから計測
+    double cameraZ = -340, cameraY = 620, cameraTargetZ = 580;
     double laneBufferX = 1024;
     double laneBufferY = laneBufferX * SU_LANE_ASPECT;
     double laneBackgroundRoll = 0, laneBackgroundSpeed = 0;
@@ -122,8 +122,8 @@ protected:
     SImage *imageLaneGround, *imageLaneJudgeLine;
     SImage *imageTap, *imageExTap, *imageFlick, *imageHellTap;
     SImage *imageAir, *imageAirUp, *imageAirDown;
-    SImage *imageHold, *imageHoldStrut;
-    SImage *imageSlide, *imageSlideStrut;
+    SImage *imageHold, *imageHoldStep, *imageHoldStrut;
+    SImage *imageSlide, *imageSlideStep, *imageSlideStrut;
     SImage *imageAirAction;
     int imageExtendedSlideStrut;
     SFont *fontCombo;
@@ -140,17 +140,14 @@ protected:
     std::vector<VERTEX2D> slideVertices;
     std::vector<uint16_t> slideIndices;
 
-    //Slideの重みが若干違うらしいけどそのへん許してね
     std::shared_ptr<Result> currentResult;
     DrawableResult previousStatus, status;
 
     std::shared_ptr<CharacterInstance> currentCharacterInstance;
 
-    // 曲の途中で変化するやつら
     DrawableNotesList data;
     DrawableNotesList seenData, judgeData;
     std::unordered_map<std::shared_ptr<SusDrawableNoteData>, SSprite*> slideEffects;
-    // 時間 横位置 Ex時間
     NoteCurvesList curveData;
     double currentTime = 0;
     double currentSoundTime = 0;
@@ -183,7 +180,7 @@ protected:
     void DrawAirActionStep(const AirDrawQuery &query) const;
     void DrawAirActionStepBox(const AirDrawQuery &query) const;
     void DrawAirActionCover(const AirDrawQuery &query);
-    void DrawTap(int lane, int length, double relpos, int handle) const;
+    void DrawTap(const float lane, int length, double relpos, int handle) const;
     void DrawMeasureLine(const std::shared_ptr<SusDrawableNoteData>& note) const;
     void DrawLaneDivisionLines() const;
     void DrawLaneBackground() const;
