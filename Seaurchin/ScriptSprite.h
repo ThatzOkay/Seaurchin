@@ -1,15 +1,18 @@
-#pragma once
+ï»¿#pragma once
 
+#include "Misc.h"
 #include "ScriptSpriteMisc.h"
-#include "MoverFunction.h"
-#include "ScriptSpriteMover2.h"
 #include "ScriptResource.h"
+
+#include "Crc32.h"
 
 #define SU_IF_COLOR "Color"
 #define SU_IF_TF2D "Transform2D"
 #define SU_IF_SHAPETYPE "ShapeType"
 #define SU_IF_TEXTALIGN "TextAlign"
 #define SU_IF_9TYPE "NinePatchType"
+
+#define SU_IF_MOVER_OBJECT "MoverObject"
 
 #define SU_IF_SPRITE "Sprite"
 #define SU_IF_SHAPE "Shape"
@@ -19,42 +22,112 @@
 #define SU_IF_ANIMESPRITE "AnimeSprite"
 #define SU_IF_CONTAINER "Container"
 
-struct Mover;
-//Šî’ê‚ªImageSprite‚Å‚à‚¢‚¢‹C‚ª‚µ‚Ä‚é‚ñ‚¾‚æ‚Ë³’¼
+class MoverObject;
+class SSpriteMover;
+
+//åŸºåº•ãŒImageSpriteã§ã‚‚ã„ã„æ°—ãŒã—ã¦ã‚‹ã‚“ã ã‚ˆã­æ­£ç›´
 class SSprite {
+public:
+    enum class FieldID : unsigned int {
+        // æœªå®šç¾©ã‚’è¡¨ã™
+        Undefined = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "unknown"),
+
+        // å…±é€š
+        X = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "x"),
+        Y = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "y"),
+        Z = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "z"),
+        OriginX = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "origX"),
+        OriginY = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "origY"),
+        Angle = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "angle"),
+        Scale = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "scale"),
+        ScaleX = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "scaleX"),
+        ScaleY = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "scaleY"),
+        Alpha = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "alpha"),
+        R = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "r"),
+        G = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "g"),
+        B = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "b"),
+
+        Death = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "death"),
+
+        // Shape
+        Width = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "width"),
+        Height = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "height"),
+
+        // ClipSprite
+        U1 = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "u1"),
+        V1 = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "v1"),
+        U2 = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "u2"),
+        V2 = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "v2"),
+
+        // AnimeSprite
+        LoopCount = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "loop"),
+        Speed = crc32_constexpr::Crc32Rec(0xFFFFFFFF, "speed")
+    };
+
+    static FieldID GetFieldId(const std::string &key) { return static_cast<FieldID>(crc32_constexpr::Crc32Rec(0xFFFFFFFF, key.c_str())); }
+    static bool GetField(const SSprite* obj, FieldID id, double &retVal);
+    static bool SetField(SSprite* obj, FieldID id, double value);
+
 private:
     virtual void DrawBy(const Transform2D &tf, const ColorTint &ct);
 
 protected:
-    int reference = 0;
-    ScriptSpriteMover2 *mover = nullptr;
+    int reference;
+    SSpriteMover *pMover;
 
     void CopyParameterFrom(SSprite *original);
 
 public:
-    //’l(CopyParameterFrom‚ÅˆêŠ‡)
+    //å€¤(CopyParameterFromã§ä¸€æ‹¬)
     Transform2D Transform;
-    int32_t ZIndex = 0;
-    ColorTint Color = Colors::white;
-    bool IsDead = false;
-    bool HasAlpha = true;
-    //QÆ(è“®ƒRƒs[)
-    SImage *Image = nullptr;
-    void SetImage(SImage *img);
-    const SImage* GetImage() const;
+    int32_t ZIndex;
+    ColorTint Color;
+    bool IsDead;
+    bool HasAlpha;
+
+    //å‚ç…§(æ‰‹å‹•ã‚³ãƒ”ãƒ¼)
+    SImage *Image;
 
     SSprite();
     virtual ~SSprite();
     void AddRef();
     void Release();
+    int GetRefCount() const { return reference; }
 
     virtual void Dismiss() { IsDead = true; }
     void Revive() { IsDead = false; }
-    virtual mover_function::Action GetCustomAction(const std::string &name);
-    void AddMove(const std::string &move) const;
-    void AbortMove(bool terminate) const;
+
+    void SetImage(SImage *img);
+    const SImage* GetImage() const;
+
+    bool SetPosX(double value) { if (value < -100000 || 100000 < value) return false; Transform.X = SU_TO_FLOAT(value); return true; }
+    bool SetPosY(double value) { if (value < -100000 || 100000 < value) return false; Transform.Y = SU_TO_FLOAT(value); return true; }
+    bool SetZIndex(double value) { if (value < -100000 || 100000 < value) return false; ZIndex = SU_TO_INT32(value); return true; }
+    bool SetOriginX(double value) { if (value < -100000 || 100000 < value) return false; Transform.OriginX = SU_TO_FLOAT(value); return true; }
+    bool SetOriginY(double value) { if (value < -100000 || 100000 < value) return false; Transform.OriginY = SU_TO_FLOAT(value); return true; }
+    bool SetAngle(double value) { if (value < -100000 || 100000 < value) return false; Transform.Angle = SU_TO_FLOAT(value); return true; }
+    bool SetScaleX(double value) { if (value < 0 || 1024 < value) return false; Transform.ScaleX = SU_TO_FLOAT(value); return true; }
+    bool SetScaleY(double value) { if (value < 0 || 1024 < value) return false; Transform.ScaleY = SU_TO_FLOAT(value); return true; }
+    bool SetAlpha(double value) { if (value < 0.0 || 1.0 < value) return false; Color.A = SU_TO_UINT8(value * 255); return true; }
+    bool SetColorR(double value) { if (value < 0.0 || 255 < value) return false;  Color.R = SU_TO_UINT8(value); return true; }
+    bool SetColorG(double value) { if (value < 0.0 || 255 < value) return false;  Color.G = SU_TO_UINT8(value); return true; }
+    bool SetColorB(double value) { if (value < 0.0 || 255 < value) return false;  Color.B = SU_TO_UINT8(value); return true; }
+
+    bool Apply(FieldID id, double value);
     void Apply(const std::string &dict);
-    void Apply(const CScriptDictionary &dict);
+    void Apply(const CScriptDictionary *dict);
+    bool SetPosition(double x, double y) { return SetPosX(x) && SetPosY(y); }
+    bool SetOrigin(double x, double y) { return SetOriginX(x) && SetOriginY(y); }
+    bool SetScale(double scale) { return SetScaleX(scale) && SetScaleY(scale); }
+    bool SetScale(double scaleX, double scaleY) { return SetScaleX(scaleX) && SetScaleY(scaleY); }
+    bool SetColor(uint8_t r, uint8_t g, uint8_t b) { Color.R = r; Color.G = g; Color.B = b; return true; }
+    bool SetColor(double a, uint8_t r, uint8_t g, uint8_t b) { Color.R = r; Color.G = g; Color.B = b; return SetAlpha(a); }
+
+    void AddMove(const std::string &move);
+    void AddMove(const std::string &key, const CScriptDictionary *dict);
+    void AddMove(const std::string &key, MoverObject* pMoverObj);
+    void AbortMove(bool terminate);
+
     virtual void Tick(double delta);
     virtual void Draw();
     virtual void Draw(const Transform2D &parent, const ColorTint &color);
@@ -79,18 +152,27 @@ enum class SShapeType {
     OvalFill,
 };
 
-//”CˆÓ‚Ì‘½ŠpŒ`‚È‚Ç‚ğ•\¦‚Å‚«‚é
+//ä»»æ„ã®å¤šè§’å½¢ãªã©ã‚’è¡¨ç¤ºã§ãã‚‹
 class SShape : public SSprite {
+private :
+    typedef SSprite Base;
+
 private:
     void DrawBy(const Transform2D &tf, const ColorTint &ct) override;
 
 public:
-    SShapeType Type = SShapeType::BoxFill;
-    double Width = 32;
-    double Height = 32;
+    SShapeType Type;
+    double Width;
+    double Height;
+
+    SShape();
+
+    bool SetWidth(double value) { if (value < -100000 || 100000 < value) return false; Width = value; return true; }
+    bool SetHeight(double value) { if (value < -100000 || 100000 < value) return false; Height = value; return true; }
 
     void Draw() override;
     void Draw(const Transform2D &parent, const ColorTint &color) override;
+    SShape* Clone() override;
 
     static SShape* Factory();
     static void RegisterType(asIScriptEngine *engine);
@@ -104,34 +186,38 @@ enum class STextAlign {
     Right = 2
 };
 
-//•¶š—ñ‚ğƒXƒvƒ‰ƒCƒg‚Æ‚µ‚Äˆµ‚¢‚Ü‚·
+//æ–‡å­—åˆ—ã‚’ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã¨ã—ã¦æ‰±ã„ã¾ã™
 class STextSprite : public SSprite {
 protected:
-    SRenderTarget * target = nullptr;
-    SRenderTarget *scrollBuffer = nullptr;
+    SRenderTarget *target;
+    SRenderTarget *scrollBuffer;
     std::tuple<double, double, int> size;
-    STextAlign horizontalAlignment = STextAlign::Left;
-    STextAlign verticalAlignment = STextAlign::Top;
-    bool isScrolling = false;
-    int scrollWidth = 0;
-    int scrollMargin = 0;
-    double scrollSpeed = 0;
-    double scrollPosition = 0;
-    bool isRich = false;
+    STextAlign horizontalAlignment;
+    STextAlign verticalAlignment;
+    bool isScrolling;
+    int scrollWidth;
+    int scrollMargin;
+    double scrollSpeed;
+    double scrollPosition;
+    bool isRich;
 
     void Refresh();
     void DrawNormal(const Transform2D &tf, const ColorTint &ct);
     void DrawScroll(const Transform2D &tf, const ColorTint &ct);
 
 public:
-    SFont * Font = nullptr;
-    std::string Text = "";
+    SFont * Font;
+    std::string Text;
+
     void SetFont(SFont* font);
     void SetText(const std::string &txt);
     void SetAlignment(STextAlign hori, STextAlign vert);
     void SetRangeScroll(int width, int margin, double pps);
     void SetRich(bool enabled);
+    double GetWidth();
+    double GetHeight();
 
+    STextSprite();
     ~STextSprite() override;
     void Tick(double delta) override;
     void Draw() override;
@@ -143,8 +229,8 @@ public:
     static void RegisterType(asIScriptEngine *engine);
 };
 
-//•¶š“ü—Í‚ğˆµ‚¤ƒXƒvƒ‰ƒCƒg‚Å‚·
-//‘¼‚Æˆá‚Á‚ÄDXƒ‰ƒCƒuƒ‰ƒŠ‚ÌƒŠƒ\[ƒX‚ğƒiƒ}‚Åæ“¾‚·‚é‚Ì‚Å‚ ‚ñ‚Ü‚èƒ{ƒRƒ{ƒRg‚í‚È‚¢‚Å‚­‚¾‚³‚¢B
+//æ–‡å­—å…¥åŠ›ã‚’æ‰±ã†ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã§ã™
+//ä»–ã¨é•ã£ã¦DXãƒ©ã‚¤ãƒ–ãƒ©ãƒªã®ãƒªã‚½ãƒ¼ã‚¹ã‚’ãƒŠãƒã§å–å¾—ã™ã‚‹ã®ã§ã‚ã‚“ã¾ã‚Šãƒœã‚³ãƒœã‚³ä½¿ã‚ãªã„ã§ãã ã•ã„ã€‚
 class STextInput : public SSprite {
 protected:
     int inputHandle = 0;
@@ -169,17 +255,19 @@ public:
     static void RegisterType(asIScriptEngine *engine);
 };
 
-//‰æ‘œ‚ğ”CˆÓ‚ÌƒXƒvƒ‰ƒCƒg‚©‚ç‡¬‚µ‚ÄƒEƒFƒC‚Å‚«‚Ü‚·
+//ç”»åƒã‚’ä»»æ„ã®ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã‹ã‚‰åˆæˆã—ã¦ã‚¦ã‚§ã‚¤ã§ãã¾ã™
 class SSynthSprite : public SSprite {
 protected:
-    SRenderTarget * target = nullptr;
-    int width = 0;
-    int height = 0;
+    SRenderTarget * target;
+    int width;
+    int height;
+
     void DrawBy(const Transform2D &tf, const ColorTint &ct) override;
 
 public:
     SSynthSprite(int w, int h);
     ~SSynthSprite() override;
+
     int GetWidth() const { return width; }
     int GetHeight() const { return height; }
 
@@ -194,22 +282,30 @@ public:
     static void RegisterType(asIScriptEngine *engine);
 };
 
-//‰æ‘œ‚ğ”CˆÓ‚ÌƒXƒvƒ‰ƒCƒg‚©‚ç‡¬‚µ‚ÄƒEƒFƒC‚Å‚«‚Ü‚·
+//ç”»åƒã‚’ä»»æ„ã®ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã‹ã‚‰åˆæˆã—ã¦ã‚¦ã‚§ã‚¤ã§ãã¾ã™
 class SClippingSprite : public SSynthSprite {
-protected:
-    double u1;
-    double v1;
-    double u2;
-    double v2;
-    SRenderTarget *actualTarget = nullptr;
-    void DrawBy(const Transform2D &tf, const ColorTint &ct) override;
+private:
+    typedef SSynthSprite Base;
 
-    static bool ActionMoveRangeTo(SSprite *thisObj, SpriteMoverArgument &args, SpriteMoverData &data, double delta);
+protected:
+    double u1, v1;
+    double u2, v2;
+
+    void DrawBy(const Transform2D &tf, const ColorTint &ct) override;
 
 public:
     SClippingSprite(int w, int h);
 
-    mover_function::Action GetCustomAction(const std::string &name) override;
+    bool SetU1(double value) { if (value < 0 || 1 < value) return false; u1 = value; return true; }
+    bool SetV1(double value) { if (value < 0 || 1 < value) return false; v1 = value; return true; }
+    bool SetU2(double value) { if (value < 0 || 1 < value) return false; u2 = value; return true; }
+    bool SetV2(double value) { if (value < 0 || 1 < value) return false; v2 = value; return true; }
+
+    double GetU1() const { return u1; }
+    double GetV1() const { return v1; }
+    double GetU2() const { return u2; }
+    double GetV2() const { return v2; }
+
     void SetRange(double tx, double ty, double w, double h);
     void Draw() override;
     void Draw(const Transform2D &parent, const ColorTint &color) override;
@@ -220,22 +316,31 @@ public:
 };
 
 class SAnimeSprite : public SSprite {
+private:
+    typedef SSprite Base;
+
 protected:
     SAnimatedImage *images;
-    int loopCount;
+    int loopCount, count;
     double speed;
     double time;
+
     void DrawBy(const Transform2D &tf, const ColorTint &ct) override;
 
 public:
     SAnimeSprite(SAnimatedImage *img);
     ~SAnimeSprite() override;
 
+    bool SetLoopCount(double value) { if (value < -1 || 10000000 < value) return false; loopCount = SU_TO_INT32(value); return true; }
+    bool SetSpeed(double value) { if (value < 0) return false; speed = value; return true; }
+
+    double GetLoopCount() const { return SU_TO_DOUBLE(loopCount); }
+    double GetSpeed() const { return speed; }
+
     void Draw() override;
     void Draw(const Transform2D &parent, const ColorTint &color) override;
     void Tick(double delta) override;
-    void SetSpeed(double speed);
-    void SetLoopCount(int lc);
+    SAnimeSprite *Clone() override;
 
     static SAnimeSprite* Factory(SAnimatedImage *image);
     static void RegisterType(asIScriptEngine *engine);
@@ -261,6 +366,7 @@ public:
     void Tick(double delta) override;
     void Draw() override;
     void Draw(const Transform2D &parent, const ColorTint &color) override;
+    SContainer *Clone() override;
 
     static SContainer* Factory();
     static void RegisterType(asIScriptEngine *engine);
@@ -282,11 +388,20 @@ void RegisterSpriteBasic(asIScriptEngine *engine, const char *name)
     //engine->RegisterObjectMethod(name, SU_IF_IMAGE "@ get_Image()", asMETHOD(T, get_Image), asCALL_THISCALL);
     engine->RegisterObjectMethod(name, "void Dismiss()", asMETHOD(T, Dismiss), asCALL_THISCALL);
     engine->RegisterObjectMethod(name, "void Apply(const string &in)", asMETHODPR(T, Apply, (const std::string&), void), asCALL_THISCALL);
-    engine->RegisterObjectMethod(name, "void Apply(const dictionary@)", asMETHODPR(T, Apply, (const CScriptDictionary&), void), asCALL_THISCALL);
-    engine->RegisterObjectMethod(name, "void AddMove(const string &in)", asMETHOD(T, AddMove), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "void Apply(const dictionary@)", asMETHODPR(T, Apply, (const CScriptDictionary*), void), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetPosition(double, double)", asMETHOD(T, SetPosition), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetOrigin(double, double)", asMETHOD(T, SetOrigin), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetAngle(double)", asMETHOD(T, SetAngle), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetScale(double)", asMETHODPR(T, SetScale, (double), bool), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetScale(double, double)", asMETHODPR(T, SetScale, (double, double), bool), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetAlpha(double)", asMETHOD(T, SetAlpha), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetColor(uint8, uint8, uint8)", asMETHODPR(T, SetColor, (uint8_t, uint8_t, uint8_t), bool), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "bool SetColor(double, uint8, uint8, uint8)", asMETHODPR(T, SetColor, (double, uint8_t, uint8_t, uint8_t), bool), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "void AddMove(const string &in)", asMETHODPR(T, AddMove, (const std::string &), void), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "void AddMove(const string &in, const dictionary@)", asMETHODPR(T, AddMove, (const std::string &, const CScriptDictionary *), void), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, "void AddMove(const string &in, " SU_IF_MOVER_OBJECT "@)", asMETHODPR(T, AddMove, (const std::string &, MoverObject *), void), asCALL_THISCALL);
     engine->RegisterObjectMethod(name, "void AbortMove(bool = true)", asMETHOD(T, AbortMove), asCALL_THISCALL);
-    engine->RegisterObjectMethod(name, "void Tick(double)", asMETHOD(T, Tick), asCALL_THISCALL);
-    engine->RegisterObjectMethod(name, "void Draw()", asMETHOD(T, Draw), asCALL_THISCALL);
+    engine->RegisterObjectMethod(name, (std::string(name) + "@ Clone()").c_str(), asMETHOD(T, Clone), asCALL_THISCALL);
 }
 
 

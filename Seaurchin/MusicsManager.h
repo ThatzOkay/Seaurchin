@@ -1,7 +1,4 @@
-#pragma once
-
-#include "SusAnalyzer.h"
-#include "Setting.h"
+Ôªø#pragma once
 
 #define SU_IF_MSCURSOR "MusicCursor"
 #define SU_IF_MSCSTATE "CursorState"
@@ -35,31 +32,30 @@ private:
 public:
     std::vector<std::shared_ptr<MusicMetaInfo>> Musics;
 
-    explicit CategoryInfo(boost::filesystem::path cpath);
+    explicit CategoryInfo(const boost::filesystem::path& cpath);
     ~CategoryInfo();
 
     std::string GetName() const { return name; }
     void Reload(bool recreateCache) const;
 };
 
-//musicÇ…sÇÕÇ¬Ç©Ç»Ç¢Ç¡ÇƒÅHímÇÈÇ©ÉoÉJ
-class MusicSelectionCursor;
 enum class MusicSelectionState {
     OutOfFunction = 0,
     Category,
     Music,
-    Variant,
     Confirmed,
 
+    Reloading,
     Error,
     Success,
 };
 
+class MusicSelectionCursor;
 class ExecutionManager;
+class SusAnalyzer;
 class MusicsManager final {
     friend class MusicSelectionCursor;
 private:
-    std::shared_ptr<Setting> sharedSetting;
     ExecutionManager *manager;
 
     bool loading = false;
@@ -73,7 +69,7 @@ public:
     ~MusicsManager();
 
     static void Initialize();
-    void Reload(bool recreateCache);
+    void Reload(bool async);
     bool IsReloading();
     boost::filesystem::path GetSelectedScorePath();
 
@@ -92,6 +88,7 @@ private:
     uint16_t variantIndex;
     MusicSelectionState state;
 
+    std::shared_ptr<CategoryInfo> GetCategoryAt(int32_t relative) const;
     std::shared_ptr<MusicMetaInfo> GetMusicAt(int32_t relative) const;
     std::shared_ptr<MusicScoreInfo> GetScoreVariantAt(int32_t relative) const;
 
@@ -99,6 +96,10 @@ public:
     MusicSelectionCursor(MusicsManager *manager);
     void AddRef() { refcount++; }
     void Release() { if (--refcount == 0) delete this; }
+    int GetRefCount() const { return refcount; }
+
+    MusicSelectionState ReloadMusic(bool async);
+    MusicSelectionState ResetState();
 
     std::string GetPrimaryString(int32_t relativeIndex) const;
     std::string GetCategoryName(int32_t relativeIndex) const;
@@ -114,12 +115,15 @@ public:
 
     MusicSelectionState Enter();
     MusicSelectionState Exit();
-    static MusicSelectionState Start();
     MusicSelectionState Next();
     MusicSelectionState Previous();
     MusicSelectionState NextVariant();
     MusicSelectionState PreviousVariant();
     MusicSelectionState GetState() const;
+
+    int32_t GetCategorySize() const;
+    int32_t GetMusicSize(int32_t relativeIndex) const;
+    int32_t GetVariantSize(int32_t relativeIndex) const;
 
     static void RegisterScriptInterface(asIScriptEngine *engine);
 };

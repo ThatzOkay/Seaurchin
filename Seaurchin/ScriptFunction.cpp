@@ -1,4 +1,4 @@
-#include "ScriptFunction.h"
+﻿#include "ScriptFunction.h"
 
 #include "Setting.h"
 #include "Config.h"
@@ -9,9 +9,10 @@ using namespace std;
 using namespace boost::filesystem;
 
 
-static int CALLBACK FontEnumerationProc(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, DWORD FontType, LPARAM lParam);
+static int CALLBACK FontEnumerationProc(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, DWORD type, LPARAM lParam);
 
-static int CALLBACK FontEnumerationProc(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, DWORD FontType, LPARAM lParam)
+// ReSharper disable once CppParameterNeverUsed
+static int CALLBACK FontEnumerationProc(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, DWORD type, LPARAM lParam)
 {
     return 0;
 }
@@ -20,13 +21,12 @@ void YieldTime(const double time)
 {
     auto ctx = asGetActiveContext();
     auto pcw = static_cast<CoroutineWait*>(ctx->GetUserData(SU_UDTYPE_WAIT));
-    if (!pcw)
-    {
-        ScriptSceneWarnOutOf("Coroutine Function", ctx);
+    if (!pcw) {
+        ScriptSceneWarnOutOf("YieldTime", "Coroutine Scene Class or Coroutine", ctx);
         return;
     }
     pcw->Type = WaitType::Time;
-    pcw->time = time;
+    pcw->Time = time;
     ctx->Suspend();
 }
 
@@ -34,13 +34,12 @@ void YieldFrames(const int64_t frames)
 {
     auto ctx = asGetActiveContext();
     auto pcw = static_cast<CoroutineWait*>(ctx->GetUserData(SU_UDTYPE_WAIT));
-    if (!pcw)
-    {
-        ScriptSceneWarnOutOf("Coroutine Function", ctx);
+    if (!pcw) {
+        ScriptSceneWarnOutOf("YieldFrame", "Coroutine Scene Class or Coroutine", ctx);
         return;
     }
     pcw->Type = WaitType::Frame;
-    pcw->frames = frames;
+    pcw->Frames = frames;
     ctx->Suspend();
 }
 
@@ -56,16 +55,17 @@ SFont* LoadSystemFont(const std::string &file)
     return SFont::CreateLoadedFontFromFile(ConvertUnicodeToUTF8(p.wstring()));
 }
 
-SSound *LoadSystemSound(SoundManager *smng, const std::string & file) {
+SSound *LoadSystemSound(SoundManager *smng, const std::string & file)
+{
     auto p = Setting::GetRootDirectory() / SU_DATA_DIR / SU_SOUND_DIR / ConvertUTF8ToUnicode(file);
-	return SSound::CreateSoundFromFile(smng, ConvertUnicodeToUTF8(p.wstring()), 4);
+    return SSound::CreateSoundFromFile(smng, ConvertUnicodeToUTF8(p.wstring()), 4);
 }
 
 void CreateImageFont(const string &fileName, const string &saveName, const int size)
 {
     Sif2CreatorOption option;
     option.FontPath = fileName;
-    option.Size = size;
+    option.Size = SU_TO_FLOAT(size);
     option.ImageSize = 1024;
     option.TextSource = "";
     const auto op = Setting::GetRootDirectory() / SU_DATA_DIR / SU_FONT_DIR / (ConvertUTF8ToUnicode(saveName) + L".sif");

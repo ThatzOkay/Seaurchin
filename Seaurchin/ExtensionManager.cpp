@@ -1,4 +1,4 @@
-#include "ExtensionManager.h"
+Ôªø#include "ExtensionManager.h"
 #include "SeaurchinExtension.h"
 #include "Config.h"
 #include "Setting.h"
@@ -6,7 +6,7 @@
 using namespace std;
 
 ExtensionManager::ExtensionManager()
-{}
+= default;
 
 ExtensionManager::~ExtensionManager()
 {
@@ -24,15 +24,15 @@ void ExtensionManager::LoadExtensions()
         if (!ends_with(filename, L".dll")) continue;
         LoadDll(filename);
     }
-    
-    spdlog::get("main")->info(u8"ÉGÉNÉXÉeÉìÉVÉáÉìëçêî: {0}", dllInstances.size());
+
+    spdlog::get("main")->info(u8"„Ç®„ÇØ„Çπ„ÉÜ„É≥„Ç∑„Éß„É≥Á∑èÊï∞: {0}", dllInstances.size());
 }
 
 void ExtensionManager::LoadDll(wstring path)
 {
     const auto h = LoadLibraryW(path.c_str());
     if (!h) return;
-    
+
     dllInstances.push_back(h);
 }
 

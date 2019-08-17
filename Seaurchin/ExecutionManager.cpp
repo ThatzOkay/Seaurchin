@@ -1,4 +1,4 @@
-#include "ExecutionManager.h"
+Ôªø#include "ExecutionManager.h"
 
 #include "Config.h"
 #include "Setting.h"
@@ -7,6 +7,7 @@
 #include "ScriptResource.h"
 #include "ScriptScene.h"
 #include "ScriptSprite.h"
+#include "MoverFunctionExpression.h"
 #include "ScenePlayer.h"
 #include "CharacterInstance.h"
 
@@ -25,59 +26,61 @@ const static toml::Array defaultAirStringKeys = {
 };
 
 ExecutionManager::ExecutionManager(const shared_ptr<Setting>& setting)
-{
-    random_device seed;
-
-    sharedSetting = setting;
-    settingManager = make_unique<setting2::SettingItemManager>(sharedSetting);
-    scriptInterface = make_shared<AngelScript>();
-    sound = make_shared<SoundManager>();
-    random = make_shared<mt19937>(seed());
-    sharedControlState = make_shared<ControlState>();
-    musics = make_shared<MusicsManager>(this);
-    characters = make_shared<CharacterManager>(this);
-    skills = make_shared<SkillManager>(this);
-    extensions = make_unique<ExtensionManager>();
-}
+    : sharedSetting(setting)
+    , settingManager(new setting2::SettingItemManager(sharedSetting))
+    , scriptInterface(new AngelScript())
+    , sound(new SoundManager())
+    , musics(new MusicsManager(this)) // thisÊ∏°„Åô„ÅÆÊÄñ„ÅÑ„Åë„Å©MusicsManager„ÅÆ„Ç≥„É≥„Çπ„Éà„É©„ÇØ„ÇøÂÜÖ„ÅßÈÄÜÂèÇÁÖß„Åó„Å¶„Å™„ÅÑ„Åã„ÇâÂ§öÂàÜ„Çª„Éº„Éï
+    , characters(new CharacterManager())
+    , skills(new SkillManager())
+    , extensions(new ExtensionManager())
+    , random(new mt19937(random_device()()))
+    , sharedControlState(new ControlState)
+    , lastResult()
+    , hImc(nullptr)
+    , hCommunicationPipe(nullptr)
+    , immConversion(0)
+    , immSentence(0)
+    , mixerBgm(nullptr)
+    , mixerSe(nullptr)
+{}
 
 void ExecutionManager::Initialize()
 {
     auto log = spdlog::get("main");
     std::ifstream slfile;
     string procline;
-    // ÉãÅ[ÉgÇÃSettingListì«Ç›çûÇ›
+    // „É´„Éº„Éà„ÅÆSettingListË™≠„ÅøËæº„Åø
     const auto slpath = sharedSetting->GetRootDirectory() / SU_DATA_DIR / SU_SCRIPT_DIR / SU_SETTING_DEFINITION_FILE;
     settingManager->LoadItemsFromToml(slpath);
     settingManager->RetrieveAllValues();
 
-    // ì¸óÕê›íË
+    // ÂÖ•ÂäõË®≠ÂÆö
     sharedControlState->Initialize();
 
     auto loadedSliderKeys = sharedSetting->ReadValue<toml::Array>("Play", "SliderKeys", defaultSliderKeys);
     if (loadedSliderKeys.size() >= 16) {
         for (auto i = 0; i < 16; i++) sharedControlState->SetSliderKeyCombination(i, loadedSliderKeys[i].as<vector<int>>());
     } else {
-        log->warn(u8"ÉXÉâÉCÉ_Å[ÉLÅ[ê›íËÇÃîzóÒÇ™16óvëfñ¢ñûÇÃÇΩÇﬂÅAÉtÉHÅ[ÉãÉoÉbÉNÇóòópÇµÇ‹Ç∑");
+        log->warn(u8"„Çπ„É©„Ç§„ÉÄ„Éº„Ç≠„ÉºË®≠ÂÆö„ÅÆÈÖçÂàó„Åå16Ë¶ÅÁ¥†Êú™Ê∫Ä„ÅÆ„Åü„ÇÅ„ÄÅ„Éï„Ç©„Éº„É´„Éê„ÉÉ„ÇØ„ÇíÂà©Áî®„Åó„Åæ„Åô");
     }
 
     auto loadedAirStringKeys = sharedSetting->ReadValue<toml::Array>("Play", "AirStringKeys", defaultAirStringKeys);
     if (loadedAirStringKeys.size() >= 4) {
         for (auto i = 0; i < 4; i++) sharedControlState->SetAirStringKeyCombination(i, loadedAirStringKeys[i].as<vector<int>>());
     } else {
-        log->warn(u8"ÉGÉAÉXÉgÉäÉìÉOÉLÅ[ê›íËÇÃîzóÒÇ™16óvëfñ¢ñûÇÃÇΩÇﬂÅAÉtÉHÅ[ÉãÉoÉbÉNÇóòópÇµÇ‹Ç∑");
+        log->warn(u8"„Ç®„Ç¢„Çπ„Éà„É™„É≥„Ç∞„Ç≠„ÉºË®≠ÂÆö„ÅÆÈÖçÂàó„Åå4Ë¶ÅÁ¥†Êú™Ê∫Ä„ÅÆ„Åü„ÇÅ„ÄÅ„Éï„Ç©„Éº„É´„Éê„ÉÉ„ÇØ„ÇíÂà©Áî®„Åó„Åæ„Åô");
     }
 
-    // ägí£ÉâÉCÉuÉâÉäì«Ç›çûÇ›
+    // Êã°Âºµ„É©„Ç§„Éñ„É©„É™Ë™≠„ÅøËæº„Åø
     extensions->LoadExtensions();
     extensions->Initialize(scriptInterface->GetEngine());
 
-    // ÉTÉEÉìÉhèâä˙âª
+    // „Çµ„Ç¶„É≥„ÉâÂàùÊúüÂåñ
     mixerBgm = SSoundMixer::CreateMixer(sound.get());
     mixerSe = SSoundMixer::CreateMixer(sound.get());
-    mixerBgm->AddRef();
-    mixerSe->AddRef();
 
-    // AngelScriptÉCÉìÉ^Å[ÉtÉFÅ[ÉXìoò^
+    // AngelScript„Ç§„É≥„Çø„Éº„Éï„Çß„Éº„ÇπÁôªÈå≤
     InterfacesRegisterEnum(this);
     RegisterScriptResource(this);
     RegisterScriptSprite(this);
@@ -90,11 +93,11 @@ void ExecutionManager::Initialize()
     RegisterGlobalManagementFunction();
     extensions->RegisterInterfaces();
 
-    // ÉLÉÉÉâÅEÉXÉLÉãì«Ç›çûÇ›
+    // „Ç≠„É£„É©„Éª„Çπ„Ç≠„É´Ë™≠„ÅøËæº„Åø
     characters->LoadAllCharacters();
     skills->LoadAllSkills();
 
-    // äOïîí êM
+    // Â§ñÈÉ®ÈÄö‰ø°
     hCommunicationPipe = CreateNamedPipe(
         SU_NAMED_PIPE_NAME,
         PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
@@ -110,18 +113,26 @@ void ExecutionManager::Initialize()
     */
 }
 
-void ExecutionManager::Shutdown() const
+void ExecutionManager::Shutdown()
 {
+    for (auto& scene : scenes) scene->Disappear();
+    scenes.clear();
+    for (auto& scene : scenesPending) scene->Disappear();
+    scenesPending.clear();
+
     if (skin) skin->Terminate();
     settingManager->SaveAllValues();
     sharedControlState->Terminate();
+
+    BOOST_ASSERT(mixerBgm->GetRefCount() == 1);
+    BOOST_ASSERT(mixerSe->GetRefCount() == 1);
+
     mixerBgm->Release();
     mixerSe->Release();
     if (hCommunicationPipe != INVALID_HANDLE_VALUE) {
         DisconnectNamedPipe(hCommunicationPipe);
         CloseHandle(hCommunicationPipe);
     }
-
 }
 
 void ExecutionManager::RegisterGlobalManagementFunction()
@@ -142,13 +153,14 @@ void ExecutionManager::RegisterGlobalManagementFunction()
     engine->RegisterGlobalFunction("int GetIntData(const string &in)", asMETHODPR(ExecutionManager, GetData<int>, (const string&), int), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction("double GetDoubleData(const string &in)", asMETHODPR(ExecutionManager, GetData<double>, (const string&), double), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction("string GetStringData(const string &in)", asMETHODPR(ExecutionManager, GetData<string>, (const string&), string), asCALL_THISCALL_ASGLOBAL, this);
+    engine->RegisterGlobalFunction("bool RegisterMoverFunction(const string &in, const string &in)", asFUNCTIONPR(MoverFunctionExpressionManager::Register, (const string&, const string&), bool), asCALL_CDECL);
+    engine->RegisterGlobalFunction("bool IsMoverFunctionRegistered(const string &in)", asFUNCTIONPR(MoverFunctionExpressionManager::IsRegistered, (const string&), bool), asCALL_CDECL);
 
     engine->RegisterGlobalFunction(SU_IF_CHARACTER_MANAGER "@ GetCharacterManager()", asMETHOD(ExecutionManager, GetCharacterManagerUnsafe), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction(SU_IF_SKILL_MANAGER "@ GetSkillManager()", asMETHOD(ExecutionManager, GetSkillManagerUnsafe), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction("bool Execute(const string &in)", asMETHODPR(ExecutionManager, ExecuteSkin, (const string&), bool), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction("bool ExecuteScene(" SU_IF_SCENE "@)", asMETHODPR(ExecutionManager, ExecuteScene, (asIScriptObject*), bool), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction("bool ExecuteScene(" SU_IF_COSCENE "@)", asMETHODPR(ExecutionManager, ExecuteScene, (asIScriptObject*), bool), asCALL_THISCALL_ASGLOBAL, this);
-    engine->RegisterGlobalFunction("void ReloadMusic()", asMETHOD(ExecutionManager, ReloadMusic), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterGlobalFunction(SU_IF_SOUNDMIXER "@ GetDefaultMixer(const string &in)", asMETHOD(ExecutionManager, GetDefaultMixer), asCALL_THISCALL_ASGLOBAL, this);
     engine->RegisterObjectBehaviour(SU_IF_MSCURSOR, asBEHAVE_FACTORY, SU_IF_MSCURSOR "@ f()", asMETHOD(MusicsManager, CreateMusicSelectionCursor), asCALL_THISCALL_ASGLOBAL, musics.get());
     engine->RegisterObjectBehaviour(SU_IF_SCENE_PLAYER, asBEHAVE_FACTORY, SU_IF_SCENE_PLAYER "@ f()", asMETHOD(ExecutionManager, CreatePlayer), asCALL_THISCALL_ASGLOBAL, this);
@@ -169,7 +181,7 @@ void ExecutionManager::EnumerateSkins()
         if (!CheckSkinStructure(fdata.path())) continue;
         skinNames.push_back(fdata.path().filename().wstring());
     }
-    log->info(u8"ÉXÉLÉìëçêî: {0:d}", skinNames.size());
+    log->info(u8"„Çπ„Ç≠„É≥Á∑èÊï∞: {0:d}", skinNames.size());
 }
 
 bool ExecutionManager::CheckSkinStructure(const path& name) const
@@ -192,19 +204,19 @@ void ExecutionManager::ExecuteSkin()
 
     const auto sn = sharedSetting->ReadValue<string>(SU_SETTING_GENERAL, SU_SETTING_SKIN, "Default");
     if (find(skinNames.begin(), skinNames.end(), ConvertUTF8ToUnicode(sn)) == skinNames.end()) {
-        log->error(u8"ÉXÉLÉì \"{0}\"Ç™å©Ç¬Ç©ÇËÇ‹ÇπÇÒÇ≈ÇµÇΩ", sn);
+        log->error(u8"„Çπ„Ç≠„É≥ \"{0}\"„ÅåË¶ã„Å§„Åã„Çä„Åæ„Åõ„Çì„Åß„Åó„Åü", sn);
         return;
     }
     const auto skincfg = Setting::GetRootDirectory() / SU_DATA_DIR / SU_SKIN_DIR / ConvertUTF8ToUnicode(sn) / SU_SETTING_DEFINITION_FILE;
     if (exists(skincfg)) {
-        log->info(u8"ÉXÉLÉìÇÃê›íËíËã`ÉtÉ@ÉCÉãÇ™óLå¯Ç≈Ç∑");
+        log->info(u8"„Çπ„Ç≠„É≥„ÅÆË®≠ÂÆöÂÆöÁæ©„Éï„Ç°„Ç§„É´„ÅåÊúâÂäπ„Åß„Åô");
         settingManager->LoadItemsFromToml(skincfg);
         settingManager->RetrieveAllValues();
     }
 
     skin = make_unique<SkinHolder>(ConvertUTF8ToUnicode(sn), scriptInterface, sound);
     skin->Initialize();
-    log->info(u8"ÉXÉLÉìì«Ç›çûÇ›äÆóπ");
+    log->info(u8"„Çπ„Ç≠„É≥Ë™≠„ÅøËæº„ÅøÂÆå‰∫Ü");
     ExecuteSkin(ConvertUnicodeToUTF8(SU_SKIN_TITLE_FILE));
 }
 
@@ -213,15 +225,18 @@ bool ExecutionManager::ExecuteSkin(const string &file)
     auto log = spdlog::get("main");
     const auto obj = skin->ExecuteSkinScript(ConvertUTF8ToUnicode(file));
     if (!obj) {
-        log->error(u8"ÉXÉNÉäÉvÉgÇÉRÉìÉpÉCÉãÇ≈Ç´Ç‹ÇπÇÒÇ≈ÇµÇΩ");
+        log->error(u8"„Çπ„ÇØ„É™„Éó„Éà„Çí„Ç≥„É≥„Éë„Ç§„É´„Åß„Åç„Åæ„Åõ„Çì„Åß„Åó„Åü");
         return false;
     }
     const auto s = CreateSceneFromScriptObject(obj);
     if (!s) {
-        log->error(u8"{0}Ç…EntryPointÇ™å©Ç¬Ç©ÇËÇ‹ÇπÇÒÇ≈ÇµÇΩ", file);
+        log->error(u8"{0}„Å´EntryPoint„ÅåË¶ã„Å§„Åã„Çä„Åæ„Åõ„Çì„Åß„Åó„Åü", file);
+        obj->Release();
         return false;
     }
     AddScene(s);
+
+    obj->Release();
     return true;
 }
 
@@ -232,7 +247,7 @@ bool ExecutionManager::ExecuteScene(asIScriptObject *sceneObject)
     if (!s) return false;
     sceneObject->SetUserData(skin.get(), SU_UDTYPE_SKIN);
     AddScene(s);
-    // ÉJÉEÉìÉ^â¡éZÇ™ó]åvÇ»ÇÃÇ≈1âÒñﬂÇ∑
+
     sceneObject->Release();
     return true;
 }
@@ -245,19 +260,19 @@ void ExecutionManager::ExecuteSystemMenu()
 
     auto sysmf = Setting::GetRootDirectory() / SU_DATA_DIR / SU_SCRIPT_DIR / SU_SYSTEM_MENU_FILE;
     if (!exists(sysmf)) {
-        log->error(u8"ÉVÉXÉeÉÄÉÅÉjÉÖÅ[ÉXÉNÉäÉvÉgÇ™å©Ç¬Ç©ÇËÇ‹ÇπÇÒÇ≈ÇµÇΩ");
+        log->error(u8"„Ç∑„Çπ„ÉÜ„É†„É°„Éã„É•„Éº„Çπ„ÇØ„É™„Éó„Éà„ÅåË¶ã„Å§„Åã„Çä„Åæ„Åõ„Çì„Åß„Åó„Åü");
         return;
     }
 
     scriptInterface->StartBuildModule("SystemMenu", [](auto inc, auto from, auto sb) { return true; });
     scriptInterface->LoadFile(sysmf.wstring());
     if (!scriptInterface->FinishBuildModule()) {
-        log->error(u8"ÉVÉXÉeÉÄÉÅÉjÉÖÅ[ÉXÉNÉäÉvÉgÇÉRÉìÉpÉCÉãÇ≈Ç´Ç‹ÇπÇÒÇ≈ÇµÇΩ");
+        log->error(u8"„Ç∑„Çπ„ÉÜ„É†„É°„Éã„É•„Éº„Çπ„ÇØ„É™„Éó„Éà„Çí„Ç≥„É≥„Éë„Ç§„É´„Åß„Åç„Åæ„Åõ„Çì„Åß„Åó„Åü");
         return;
     }
     const auto mod = scriptInterface->GetLastModule();
 
-    //ÉGÉìÉgÉäÉ|ÉCÉìÉgåüçı
+    //„Ç®„É≥„Éà„É™„Éù„Ç§„É≥„ÉàÊ§úÁ¥¢
     const int cnt = mod->GetObjectTypeCount();
     asITypeInfo *type = nullptr;
     for (auto i = 0; i < cnt; i++) {
@@ -268,7 +283,7 @@ void ExecutionManager::ExecuteSystemMenu()
         break;
     }
     if (!type) {
-        log->error(u8"ÉVÉXÉeÉÄÉÅÉjÉÖÅ[ÉXÉNÉäÉvÉgÇ…EntryPointÇ™å©Ç¬Ç©ÇËÇ‹ÇπÇÒÇ≈ÇµÇΩ");
+        log->error(u8"„Ç∑„Çπ„ÉÜ„É†„É°„Éã„É•„Éº„Çπ„ÇØ„É™„Éó„Éà„Å´EntryPoint„ÅåË¶ã„Å§„Åã„Çä„Åæ„Åõ„Çì„Åß„Åó„Åü");
         return;
     }
 
@@ -283,7 +298,7 @@ void ExecutionManager::Tick(const double delta)
 {
     sharedControlState->Update();
 
-    //ÉVÅ[ÉìëÄçÏ
+    //„Ç∑„Éº„É≥Êìç‰Ωú
     for (auto& scene : scenesPending) scenes.push_back(scene);
     scenesPending.clear();
     sort(scenes.begin(), scenes.end(), [](const shared_ptr<Scene> sa, const shared_ptr<Scene> sb) { return sa->GetIndex() < sb->GetIndex(); });
@@ -291,13 +306,14 @@ void ExecutionManager::Tick(const double delta)
     while (i != scenes.end()) {
         (*i)->Tick(delta);
         if ((*i)->IsDead()) {
+            (*i)->Dispose();
             i = scenes.erase(i);
         } else {
             ++i;
         }
     }
 
-    //å„èàóù
+    //ÂæåÂá¶ÁêÜ
     static double ps = 0;
     ps += delta;
     if (ps >= 1.0) {
@@ -331,12 +347,12 @@ shared_ptr<ScriptScene> ExecutionManager::CreateSceneFromScriptType(asITypeInfo 
         auto obj = scriptInterface->InstantiateObject(type);
         return static_pointer_cast<ScriptScene>(make_shared<ScriptCoroutineScene>(obj));
     }
-    if (scriptInterface->CheckImplementation(type, SU_IF_SCENE))  //ç≈å„
+    if (scriptInterface->CheckImplementation(type, SU_IF_SCENE))  //ÊúÄÂæå
     {
         auto obj = scriptInterface->InstantiateObject(type);
         return make_shared<ScriptScene>(obj);
     }
-    log->error(u8"{0}ÉNÉâÉXÇ…SceneånÉCÉìÉ^Å[ÉtÉFÅ[ÉXÇ™é¿ëïÇ≥ÇÍÇƒÇ¢Ç‹ÇπÇÒ", type->GetName());
+    log->error(u8"{0}„ÇØ„É©„Çπ„Å´SceneÁ≥ª„Ç§„É≥„Çø„Éº„Éï„Çß„Éº„Çπ„ÅåÂÆüË£Ö„Åï„Çå„Å¶„ÅÑ„Åæ„Åõ„Çì", type->GetName());
     return nullptr;
 }
 
@@ -348,11 +364,11 @@ shared_ptr<ScriptScene> ExecutionManager::CreateSceneFromScriptObject(asIScriptO
     if (scriptInterface->CheckImplementation(type, SU_IF_COSCENE)) {
         return static_pointer_cast<ScriptScene>(make_shared<ScriptCoroutineScene>(obj));
     }
-    if (scriptInterface->CheckImplementation(type, SU_IF_SCENE))  //ç≈å„
+    if (scriptInterface->CheckImplementation(type, SU_IF_SCENE))  //ÊúÄÂæå
     {
         return make_shared<ScriptScene>(obj);
     }
-    log->error(u8"{0}ÉNÉâÉXÇ…SceneånÉCÉìÉ^Å[ÉtÉFÅ[ÉXÇ™é¿ëïÇ≥ÇÍÇƒÇ¢Ç‹ÇπÇÒ", type->GetName());
+    log->error(u8"{0}„ÇØ„É©„Çπ„Å´SceneÁ≥ª„Ç§„É≥„Çø„Éº„Éï„Çß„Éº„Çπ„ÅåÂÆüË£Ö„Åï„Çå„Å¶„ÅÑ„Åæ„Åõ„Çì", type->GetName());
     return nullptr;
 }
 

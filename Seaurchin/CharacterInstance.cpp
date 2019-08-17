@@ -1,25 +1,25 @@
-#include "CharacterInstance.h"
+ï»¿#include "CharacterInstance.h"
 #include "Misc.h"
 #include "Setting.h"
 #include "Config.h"
+#include "ScriptScene.h"
 
 using namespace std;
 
-CharacterInstance::CharacterInstance(const shared_ptr<CharacterParameter>& character, const shared_ptr<SkillParameter>& skill, const shared_ptr<AngelScript>& script, const shared_ptr<Result>& result):
-    imageSet(nullptr)
-{
-    characterSource = character;
-    skillSource = skill;
-    targetResult = result;
-    scriptInterface = script;
-    judgeCallback = nullptr;
-    indicators = make_shared<SkillIndicators>();
-    context = script->GetEngine()->CreateContext();
-}
+CharacterInstance::CharacterInstance(const shared_ptr<CharacterParameter>& character, const shared_ptr<SkillParameter>& skill, const shared_ptr<AngelScript>& script, const shared_ptr<Result>& result)
+    : scriptInterface(script)
+    , characterSource(character)
+    , skillSource(skill)
+    , imageSet(nullptr)
+    , indicators(new SkillIndicators())
+    , targetResult(result)
+    , context(script->GetEngine()->CreateContext())
+    , judgeCallback(nullptr)
+{}
 
 CharacterInstance::~CharacterInstance()
 {
-    delete judgeCallback;
+    if (judgeCallback) judgeCallback->Release();
     context->Release();
     for (const auto &t : abilityTypes) t->Release();
     for (const auto &o : abilities) o->Release();
@@ -42,7 +42,8 @@ void CharacterInstance::LoadAbilities()
     auto log = spdlog::get("main");
     const auto abroot = Setting::GetRootDirectory() / SU_SKILL_DIR / SU_ABILITY_DIR;
 
-    for (const auto &def : skillSource->Abilities) {
+    const auto &abilities = skillSource->GetDetail(skillSource->CurrentLevel).Abilities;
+    for (const auto &def : abilities) {
         vector<string> params;
         auto scrpath = abroot / ConvertUTF8ToUnicode(def.Name + ".as");
 
@@ -53,11 +54,11 @@ void CharacterInstance::LoadAbilities()
         AbilityFunctions funcs;
         funcs.OnStart = abt->GetMethodByDecl("void OnStart(" SU_IF_RESULT "@)");
         funcs.OnFinish = abt->GetMethodByDecl("void OnFinish(" SU_IF_RESULT "@)");
-        funcs.OnJusticeCritical = abt->GetMethodByDecl("void OnJusticeCritical(" SU_IF_RESULT "@, " SU_IF_NOTETYPE ")");
-        funcs.OnJustice = abt->GetMethodByDecl("void OnJustice(" SU_IF_RESULT "@, " SU_IF_NOTETYPE ")");
-        funcs.OnAttack = abt->GetMethodByDecl("void OnAttack(" SU_IF_RESULT "@, " SU_IF_NOTETYPE ")");
-        funcs.OnMiss = abt->GetMethodByDecl("void OnMiss(" SU_IF_RESULT "@, " SU_IF_NOTETYPE ")");
-        abilities.push_back(abo);
+        funcs.OnJusticeCritical = abt->GetMethodByDecl("void OnJusticeCritical(" SU_IF_RESULT "@, " SU_IF_JUDGE_DATA ")");
+        funcs.OnJustice = abt->GetMethodByDecl("void OnJustice(" SU_IF_RESULT "@, " SU_IF_JUDGE_DATA ")");
+        funcs.OnAttack = abt->GetMethodByDecl("void OnAttack(" SU_IF_RESULT "@, " SU_IF_JUDGE_DATA ")");
+        funcs.OnMiss = abt->GetMethodByDecl("void OnMiss(" SU_IF_RESULT "@, " SU_IF_JUDGE_DATA ")");
+        this->abilities.push_back(abo);
         abilityTypes.push_back(abt);
         abilityEvents.push_back(funcs);
 
@@ -86,7 +87,8 @@ void CharacterInstance::LoadAbilities()
         context->SetArgAddress(0, args);
         context->SetArgAddress(1, indicators.get());
         context->Execute();
-        log->info(u8"ƒAƒrƒŠƒeƒB[ " + ConvertUnicodeToUTF8(scrpath.c_str()));
+        context->Unprepare();
+        log->info(u8"ã‚¢ãƒ“ãƒªãƒ†ã‚£ãƒ¼ " + ConvertUnicodeToUTF8(scrpath.c_str()));
     }
 }
 
@@ -100,7 +102,7 @@ asIScriptObject* CharacterInstance::LoadAbilityObject(const boost::filesystem::p
     using namespace boost::filesystem;
     auto log = spdlog::get("main");
     auto abroot = Setting::GetRootDirectory() / SU_SKILL_DIR / SU_ABILITY_DIR;
-    //‚¨’ƒ‚ð‘÷‚¹
+    //ãŠèŒ¶ã‚’æ¿ã›
     const auto modulename = ConvertUnicodeToUTF8(filepath.c_str());
     auto mod = scriptInterface->GetExistModule(modulename);
     if (!mod) {
@@ -117,7 +119,7 @@ asIScriptObject* CharacterInstance::LoadAbilityObject(const boost::filesystem::p
         mod = scriptInterface->GetLastModule();
     }
 
-    //ƒGƒ“ƒgƒŠƒ|ƒCƒ“ƒgŒŸõ
+    //ã‚¨ãƒ³ãƒˆãƒªãƒã‚¤ãƒ³ãƒˆæ¤œç´¢
     const int cnt = mod->GetObjectTypeCount();
     asITypeInfo *type = nullptr;
     for (auto i = 0; i < cnt; i++) {
@@ -129,12 +131,11 @@ asIScriptObject* CharacterInstance::LoadAbilityObject(const boost::filesystem::p
         break;
     }
     if (!type) {
-        log->critical(u8"ƒAƒrƒŠƒeƒB[‚ÉEntryPoint‚ª‚ ‚è‚Ü‚¹‚ñ");
+        log->critical(u8"ã‚¢ãƒ“ãƒªãƒ†ã‚£ãƒ¼ã«EntryPointãŒã‚ã‚Šã¾ã›ã‚“");
         return nullptr;
     }
 
     const auto obj = scriptInterface->InstantiateObject(type);
-    obj->AddRef();
     type->Release();
     return obj;
 }
@@ -145,27 +146,38 @@ void CharacterInstance::CallEventFunction(asIScriptObject *obj, asIScriptFunctio
     context->SetObject(obj);
     context->SetArgAddress(0, targetResult.get());
     context->Execute();
+    context->Unprepare();
 }
 
-void CharacterInstance::CallEventFunction(asIScriptObject *obj, asIScriptFunction *func, AbilityNoteType type) const
+void CharacterInstance::CallEventFunction(asIScriptObject *obj, asIScriptFunction *func, const JudgeInformation &info) const
 {
+    auto infoClone = info;
     context->Prepare(func);
     context->SetObject(obj);
     context->SetArgAddress(0, targetResult.get());
-    context->SetArgDWord(1, asDWORD(type));
+    context->SetArgObject(1, static_cast<void*>(&infoClone));
     context->Execute();
+    context->Unprepare();
 }
 
-void CharacterInstance::CallJudgeCallback(const AbilityJudgeType judge, const AbilityNoteType type, const string& extra) const
+void CharacterInstance::CallJudgeCallback(const AbilityJudgeType judge, const JudgeInformation &info, const string& extra) const
 {
     if (!judgeCallback) return;
+    if (!judgeCallback->IsExists()) {
+        judgeCallback->Release();
+        judgeCallback = nullptr;
+        return;
+    }
+
     auto message = extra;
-    judgeCallback->Context->Prepare(judgeCallback->Function);
-    judgeCallback->Context->SetObject(judgeCallback->Object);
-    judgeCallback->Context->SetArgDWord(0, asDWORD(judge));
-    judgeCallback->Context->SetArgDWord(1, asDWORD(type));
-    judgeCallback->Context->SetArgObject(2, static_cast<void*>(&message));
-    judgeCallback->Context->Execute();
+    auto infoClone = info;
+
+    judgeCallback->Prepare();
+    judgeCallback->SetArg(0, SU_TO_INT32(judge));
+    judgeCallback->SetArgObject(1, &infoClone);
+    judgeCallback->SetArgObject(2, &message);
+    judgeCallback->Execute();
+    judgeCallback->Unprepare();
 }
 
 void CharacterInstance::OnStart()
@@ -186,51 +198,59 @@ void CharacterInstance::OnFinish()
     }
 }
 
-void CharacterInstance::OnJusticeCritical(const AbilityNoteType type, const std::string& extra)
+void CharacterInstance::OnJusticeCritical(const JudgeInformation &info, const string& extra)
 {
     for (auto i = 0u; i < abilities.size(); ++i) {
         const auto func = abilityEvents[i].OnJusticeCritical;
         const auto obj = abilities[i];
-        CallEventFunction(obj, func, type);
+        CallEventFunction(obj, func, info);
     }
-    CallJudgeCallback(AbilityJudgeType::JusticeCritical, type, extra);
+    CallJudgeCallback(AbilityJudgeType::JusticeCritical, info, extra);
 }
 
-void CharacterInstance::OnJustice(const AbilityNoteType type, const std::string& extra)
+void CharacterInstance::OnJustice(const JudgeInformation &info, const string& extra)
 {
     for (auto i = 0u; i < abilities.size(); ++i) {
         const auto func = abilityEvents[i].OnJustice;
         const auto obj = abilities[i];
-        CallEventFunction(obj, func, type);
+        CallEventFunction(obj, func, info);
     }
-    CallJudgeCallback(AbilityJudgeType::Justice, type, extra);
+    CallJudgeCallback(AbilityJudgeType::Justice, info, extra);
 }
 
-void CharacterInstance::OnAttack(const AbilityNoteType type, const std::string& extra)
+void CharacterInstance::OnAttack(const JudgeInformation &info, const string& extra)
 {
     for (auto i = 0u; i < abilities.size(); ++i) {
         const auto func = abilityEvents[i].OnAttack;
         const auto obj = abilities[i];
-        CallEventFunction(obj, func, type);
+        CallEventFunction(obj, func, info);
     }
-    CallJudgeCallback(AbilityJudgeType::Attack, type, extra);
+    CallJudgeCallback(AbilityJudgeType::Attack, info, extra);
 }
 
-void CharacterInstance::OnMiss(const AbilityNoteType type, const std::string& extra)
+void CharacterInstance::OnMiss(const JudgeInformation &info, const string& extra)
 {
     for (auto i = 0u; i < abilities.size(); ++i) {
         const auto func = abilityEvents[i].OnMiss;
         const auto obj = abilities[i];
-        CallEventFunction(obj, func, type);
+        CallEventFunction(obj, func, info);
     }
-    CallJudgeCallback(AbilityJudgeType::Miss, type, extra);
+    CallJudgeCallback(AbilityJudgeType::Miss, info, extra);
 }
 
-void CharacterInstance::SetCallback(asIScriptFunction *func)
+void CharacterInstance::SetCallback(asIScriptFunction *func, ScriptScene *sceneObj)
 {
     if (!func || func->GetFuncType() != asFUNC_DELEGATE) return;
-    delete judgeCallback;
+    if (judgeCallback) judgeCallback->Release();
+
+    func->AddRef();
     judgeCallback = new CallbackObject(func);
+    judgeCallback->SetUserData(sceneObj, SU_UDTYPE_SCENE);
+
+    judgeCallback->AddRef();
+    sceneObj->RegisterDisposalCallback(judgeCallback);
+
+    func->Release();
 }
 
 CharacterParameter* CharacterInstance::GetCharacterParameter() const
@@ -260,7 +280,7 @@ void RegisterCharacterSkillTypes(asIScriptEngine *engine)
     RegisterSkillTypes(engine);
     RegisterCharacterTypes(engine);
 
-    engine->RegisterFuncdef("void " SU_IF_JUDGE_CALLBACK "(" SU_IF_JUDGETYPE ", " SU_IF_NOTETYPE ", const string &in)");
+    engine->RegisterFuncdef("void " SU_IF_JUDGE_CALLBACK "(" SU_IF_JUDGETYPE ", " SU_IF_JUDGE_DATA ", const string &in)");
     engine->RegisterObjectType(SU_IF_CHARACTER_INSTANCE, 0, asOBJ_REF);
     engine->RegisterObjectBehaviour(SU_IF_CHARACTER_INSTANCE, asBEHAVE_ADDREF, "void f()", asMETHOD(CharacterInstance, AddRef), asCALL_THISCALL);
     engine->RegisterObjectBehaviour(SU_IF_CHARACTER_INSTANCE, asBEHAVE_RELEASE, "void f()", asMETHOD(CharacterInstance, Release), asCALL_THISCALL);

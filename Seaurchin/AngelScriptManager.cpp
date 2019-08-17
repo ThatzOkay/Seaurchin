@@ -1,29 +1,27 @@
-#include "AngelScriptManager.h"
+ï»¿#include "AngelScriptManager.h"
 
 using namespace std;
 static int ScriptIncludeCallback(const wchar_t *include, const wchar_t *from, CWScriptBuilder *builder, void *userParam);
 
 AngelScript::AngelScript()
+    : engine(asCreateScriptEngine())
 {
-    engine = asCreateScriptEngine();
+    engine->SetMessageCallback(asMETHOD(AngelScript, ScriptMessageCallback), this, asCALL_THISCALL);
     RegisterScriptMath(engine);
     RegisterScriptArray(engine, true);
     RegisterStdString(engine);
     RegisterStdStringUtils(engine);
     RegisterScriptDictionary(engine);
-    engine->SetMessageCallback(asMETHOD(AngelScript, ScriptMessageCallback), this, asCALL_THISCALL);
 
     //Script Interface
-
     sharedContext = engine->CreateContext();
-    sharedContext->AddRef();
     builder.SetIncludeCallback(ScriptIncludeCallback, this);
 }
 
 AngelScript::~AngelScript()
 {
     sharedContext->Release();
-    // engine->ShutDownAndRelease();
+    engine->ShutDownAndRelease();
 }
 
 void AngelScript::StartBuildModule(const string &name, const IncludeCallback callback)
@@ -64,7 +62,11 @@ asIScriptObject *AngelScript::InstantiateObject(asITypeInfo * type) const
     const auto factory = type->GetFactoryByIndex(0);
     sharedContext->Prepare(factory);
     sharedContext->Execute();
-    return *static_cast<asIScriptObject**>(sharedContext->GetAddressOfReturnValue());
+    const auto ptr = *static_cast<asIScriptObject**>(sharedContext->GetAddressOfReturnValue());
+    ptr->AddRef();
+    sharedContext->Unprepare();
+
+    return ptr;
 }
 
 // ReSharper disable once CppMemberFunctionMayBeStatic
@@ -74,13 +76,13 @@ void AngelScript::ScriptMessageCallback(const asSMessageInfo * message) const
     auto log = spdlog::get("main");
     switch (message->type) {
         case asMSGTYPE_INFORMATION:
-            log->info(u8"{0} ({1:d}s{2:d}—ñ): {3}", message->section, message->row, message->col, message->message);
+            log->info(u8"{0} ({1:d}è¡Œ{2:d}åˆ—): {3}", message->section, message->row, message->col, message->message);
             break;
         case asMSGTYPE_WARNING:
-            log->warn(u8"{0} ({1:d}s{2:d}—ñ): {3}", message->section, message->row, message->col, message->message);
+            log->warn(u8"{0} ({1:d}è¡Œ{2:d}åˆ—): {3}", message->section, message->row, message->col, message->message);
             break;
         case asMSGTYPE_ERROR:
-            log->error(u8"{0} ({1:d}s{2:d}—ñ): {3}", message->section, message->row, message->col, message->message);
+            log->error(u8"{0} ({1:d}è¡Œ{2:d}åˆ—): {3}", message->section, message->row, message->col, message->message);
             break;
     }
 }
@@ -91,21 +93,50 @@ int ScriptIncludeCallback(const wchar_t *include, const wchar_t *from, CWScriptB
     return as->IncludeFile(include, from) ? 1 : -1;
 }
 
+MethodObject::MethodObject(asIScriptEngine *engine, asIScriptObject *object, asIScriptFunction *method)
+    : context(engine->CreateContext())
+    , object(object)
+    , function(method)
+{}
+
+MethodObject::~MethodObject()
+{
+    context->Release();
+    object->Release();
+    function->Release();
+}
+
 CallbackObject::CallbackObject(asIScriptFunction *callback)
+    : exists(true)
+    , refcount(1)
 {
     const auto ctx = asGetActiveContext();
     auto engine = ctx->GetEngine();
-    Context = engine->CreateContext();
-    Function = callback->GetDelegateFunction();
-    Function->AddRef();
-    Object = static_cast<asIScriptObject*>(callback->GetDelegateObject());
-    Type = callback->GetDelegateObjectType();
+    context = engine->CreateContext();
+    function = callback->GetDelegateFunction();
+    function->AddRef();
+    object = static_cast<asIScriptObject*>(callback->GetDelegateObject());
+    object->AddRef();
+    type = callback->GetDelegateObjectType();
+    type->AddRef();
+
+    callback->Release();
 }
 
 CallbackObject::~CallbackObject()
 {
-    auto engine = Context->GetEngine();
-    Context->Release();
-    Function->Release();
-    engine->ReleaseScriptObject(Object, Type);
+    Dispose();
+}
+
+void CallbackObject::Dispose()
+{
+    if (!exists) return;
+
+    auto engine = context->GetEngine();
+    context->Release();
+    function->Release();
+    engine->ReleaseScriptObject(object, type);
+    type->Release();
+
+    exists = false;
 }

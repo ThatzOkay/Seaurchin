@@ -1,9 +1,8 @@
-#pragma once
+﻿#pragma once
 
 
 class ExecutionManager;
-class Scene
-{
+class Scene {
 protected:
     int index;
     ExecutionManager *manager;
@@ -17,9 +16,13 @@ public:
     void SetManager(ExecutionManager *info) { manager = info; }
     ExecutionManager* GetManager() const { return manager; }
 
+    virtual const char* GetMainMethodDecl() const { return nullptr; };
+
     virtual void Initialize();
     virtual void Tick(double delta);
     virtual void OnEvent(const std::string &message);
     virtual void Draw();
     virtual bool IsDead();
+    virtual void Disappear();
+    virtual void Dispose();
 };

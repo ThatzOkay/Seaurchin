@@ -1,11 +1,6 @@
-#include "ExecutionManager.h"
+﻿#include "ExecutionManager.h"
 
 using namespace std;
-
-void ExecutionManager::ReloadMusic() const
-{
-    musics->Reload(true);
-}
 
 void ExecutionManager::Fire(const string & message)
 {
@@ -23,6 +18,8 @@ ScenePlayer *ExecutionManager::CreatePlayer()
 {
     auto player = new ScenePlayer(this);
     player->AddRef();
+
+    BOOST_ASSERT(player->GetRefCount() == 1);
     return player;
 }
 

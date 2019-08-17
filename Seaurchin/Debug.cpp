@@ -1,4 +1,4 @@
-#include "Debug.h"
+Ôªø#include "Debug.h"
 #include "Misc.h"
 
 using namespace std;
@@ -19,6 +19,11 @@ void Logger::Initialize()
     sinks.push_back(make_shared<sinks::simple_file_sink_mt>("Seaurchin.log", true));
     loggerMain = make_shared<logger>("main", begin(sinks), end(sinks));
     loggerMain->set_pattern("[%H:%M:%S.%e] [%L] %v");
+#if _DEBUG
+    loggerMain->set_level(level::trace);
+#else
+    loggerMain->set_level(level::info);
+#endif
     register_logger(loggerMain);
 }
 
@@ -34,14 +39,14 @@ void Logger::Terminate() const
 StandardOutputUnicodeSink::StandardOutputUnicodeSink()
 {
     using namespace spdlog::level;
-    colors[level_enum::trace] = FOREGROUND_INTENSITY;   // äDêF
-    colors[level_enum::debug] = FOREGROUND_INTENSITY;   // äDêF
-    colors[level_enum::info] = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;  // îí
-    colors[level_enum::warn] = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;    // â©êF
-    colors[level_enum::err] = FOREGROUND_RED | FOREGROUND_INTENSITY;    // ê‘
+    colors[level_enum::trace] = FOREGROUND_INTENSITY;   // ÁÅ∞Ëâ≤
+    colors[level_enum::debug] = FOREGROUND_INTENSITY;   // ÁÅ∞Ëâ≤
+    colors[level_enum::info] = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;  // ÁôΩ
+    colors[level_enum::warn] = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;    // ÈªÑËâ≤
+    colors[level_enum::err] = FOREGROUND_RED | FOREGROUND_INTENSITY;    // Ëµ§
     colors[level_enum::critical] =
         FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY
-        | BACKGROUND_RED | BACKGROUND_INTENSITY;    // ê‘ínÇ…îí
+        | BACKGROUND_RED | BACKGROUND_INTENSITY;    // Ëµ§Âú∞„Å´ÁôΩ
     colors[level_enum::off] = 0;
 
     hStdout = GetStdHandle(STD_OUTPUT_HANDLE);

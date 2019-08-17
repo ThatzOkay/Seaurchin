@@ -1,11 +1,10 @@
-#pragma once
+ï»¿#pragma once
 
 typedef std::function<bool(std::wstring, std::wstring, CWScriptBuilder*)> IncludeCallback;
 
-class AngelScript
-{
+class AngelScript {
 private:
-    asIScriptEngine *engine;
+    asIScriptEngine * const engine;
     asIScriptContext *sharedContext;
     CWScriptBuilder builder;
     IncludeCallback includeFunc;
@@ -19,48 +18,147 @@ public:
     asIScriptEngine* GetEngine() const { return engine; }
     asIScriptContext* GetContext() const { return sharedContext; }
 
-    //V‚µ‚­Module‚·‚é
+    //æ–°ã—ãModuleã™ã‚‹
     void StartBuildModule(const std::string &name, IncludeCallback callback);
 
     asIScriptModule* GetExistModule(std::string name) const { return engine->GetModule(name.c_str()); }
-    
-    //ƒtƒ@ƒCƒ‹“Ç‚İ‚İ
+
+    //ãƒ•ã‚¡ã‚¤ãƒ«èª­ã¿è¾¼ã¿
     void LoadFile(const std::wstring &filename);
-    
-    //ŠO‚©‚çg‚í‚È‚¢‚Å
+
+    //å¤–ã‹ã‚‰ä½¿ã‚ãªã„ã§
     bool IncludeFile(const std::wstring &include, const std::wstring &from);
-    
-    //ƒrƒ‹ƒh‚·‚é
+
+    //ãƒ“ãƒ«ãƒ‰ã™ã‚‹
     bool FinishBuildModule();
-    
-    //Finish‚µ‚½Module‚ğæ“¾
+
+    //Finishã—ãŸModuleã‚’å–å¾—
     asIScriptModule* GetLastModule() { return builder.GetModule(); }
 
-    //“Á’èƒNƒ‰ƒX‚Éƒƒ^ƒf[ƒ^‚ª•t—^‚³‚ê‚Ä‚é‚©
+    //ç‰¹å®šã‚¯ãƒ©ã‚¹ã«ãƒ¡ã‚¿ãƒ‡ãƒ¼ã‚¿ãŒä»˜ä¸ã•ã‚Œã¦ã‚‹ã‹
     bool CheckMetaData(asITypeInfo *type, const std::string &meta);
-    
-    //“Á’èƒOƒŠÖ‚É(ry
+
+    //ç‰¹å®šã‚°ãƒ­é–¢ã«(ry
     bool CheckMetaData(asIScriptFunction *type, const std::string &meta);
 
 
-    //À‘•‚ğƒ`ƒFƒbƒN
+    //å®Ÿè£…ã‚’ãƒã‚§ãƒƒã‚¯
     bool CheckImplementation(asITypeInfo *type, std::string name) const
     {
         return type->Implements(engine->GetTypeInfoByName(name.c_str()));
     }
-    
-    //asITypeInfo‚©‚çƒCƒ“ƒXƒ^ƒ“ƒXì¬ ƒŠƒtƒ@ƒŒƒ“ƒX–³‚µ‚È‚Ì‚Å‚³‚Á‚³‚ÆAddRef‚µ‚ë
+
+    //asITypeInfoã‹ã‚‰ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ä½œæˆ
     asIScriptObject* InstantiateObject(asITypeInfo *type) const;
 };
 
-// ƒR[ƒ‹ƒoƒbƒN‚ğŠÇ—‚·‚é
-// ƒfƒXƒgƒ‰ƒNƒ^‚ÅŠJ•ú‚·‚é‚©‚çS”z‚¢‚ç‚È‚¢c‚Í‚¸
-struct CallbackObject {
-    asIScriptObject *Object;
-    asIScriptFunction *Function;
-    asITypeInfo *Type;
-    asIScriptContext *Context;
+#define SU_DEF_SETARG_ALL(CONTEXT) \
+    SU_DEF_SETARG_BYTE(UINT8, CONTEXT)\
+    SU_DEF_SETARG_BYTE(INT8, CONTEXT)\
+    SU_DEF_SETARG_WORD(UINT16, CONTEXT)\
+    SU_DEF_SETARG_WORD(INT16, CONTEXT)\
+    SU_DEF_SETARG_DWORD(UINT32, CONTEXT)\
+    SU_DEF_SETARG_DWORD(INT32, CONTEXT)\
+    SU_DEF_SETARG_QWORD(UINT64, CONTEXT)\
+    SU_DEF_SETARG_QWORD(INT64, CONTEXT)\
+    SU_DEF_SETARG_FLOAT(float, CONTEXT)\
+    SU_DEF_SETARG_DOUBLE(double, CONTEXT)\
+    SU_DEF_SETARG_ADDRESS(void *, CONTEXT)\
+    SU_DEF_SETARG_ADDRESS(std::string *, CONTEXT)\
+    SU_DEF_SETARG_OBJECT(void *, CONTEXT)
 
+
+#define SU_DEF_SETARG_BEGIN template<typename T> int SetArg(asUINT, T) { static_assert(false, "ãƒ†ãƒ³ãƒ—ãƒ¬ãƒ¼ãƒˆç‰¹æ®ŠåŒ–ã‚’å®Ÿè£…ã™ã‚‹ã“ã¨"); }
+#define SU_DEF_SETARG_BYTE(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgByte(arg, value); }
+#define SU_DEF_SETARG_WORD(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgWord(arg, value); }
+#define SU_DEF_SETARG_DWORD(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgDWord(arg, value); }
+#define SU_DEF_SETARG_QWORD(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgQWord(arg, value); }
+#define SU_DEF_SETARG_FLOAT(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgFloat(arg, value); }
+#define SU_DEF_SETARG_DOUBLE(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgDouble(arg, value); }
+#define SU_DEF_SETARG_ADDRESS(TYPE, CONTEXT) template<> int SetArg<TYPE>(asUINT arg, TYPE value) { return CONTEXT->SetArgAddress(arg, static_cast<void *>(value)); }
+#define SU_DEF_SETARG_OBJECT(TYPE, CONTEXT) int SetArgObject(asUINT arg, TYPE value) { return CONTEXT->SetArgObject(arg, static_cast<void *>(value)); }
+#define SU_DEF_SETARG_END 
+
+// ãƒ¡ãƒ³ãƒé–¢æ•°ã‚’ç®¡ç†ã™ã‚‹
+class MethodObject {
+private:
+    asIScriptContext *context;
+    asIScriptObject *object;
+    asIScriptFunction *function;
+
+public:
+    explicit MethodObject(asIScriptEngine *engine, asIScriptObject *object, asIScriptFunction *method);
+    ~MethodObject();
+
+    void *SetUserData(void *data, asPWORD type) { return context->SetUserData(data, type); }
+
+    int Prepare()
+    {
+        const auto r1 = context->Prepare(function);
+        if (r1 != asSUCCESS) return r1;
+        return context->SetObject(object);
+    }
+
+    int Execute() { return context->Execute(); }
+    int Unprepare() { return context->Unprepare(); }
+
+    SU_DEF_SETARG_BEGIN;
+    SU_DEF_SETARG_ALL(context);
+    SU_DEF_SETARG_END;
+};
+
+// ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã‚’ç®¡ç†ã™ã‚‹
+class CallbackObject {
+private:
+    asIScriptContext *context;
+    asIScriptObject *object;
+    asIScriptFunction *function;
+    asITypeInfo *type;
+    bool exists;
+    int refcount;
+
+public:
     explicit CallbackObject(asIScriptFunction *callback);
     ~CallbackObject();
+
+    void AddRef() { refcount++; }
+    void Release() { if (--refcount == 0) delete this; }
+    int GetRefCount() const { return refcount; }
+
+    void *SetUserData(void *data, asPWORD type) {
+        BOOST_ASSERT(IsExists());
+        return context->SetUserData(data, type);
+    }
+
+    int Prepare()
+    {
+        BOOST_ASSERT(IsExists());
+        const auto r1 = context->Prepare(function);
+        if (r1 != asSUCCESS) return r1;
+        return context->SetObject(object);
+    }
+
+    int Execute()
+    {
+        BOOST_ASSERT(IsExists());
+        return context->Execute();
+    }
+
+    int Unprepare() {
+        BOOST_ASSERT(IsExists());
+        return context->Unprepare();
+    }
+
+    // ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆãŒæ‰€æœ‰ã—ã¦ã„ã‚‹ãƒ‡ãƒªã‚²ãƒ¼ãƒˆã€Œã®ã¿ã€ã‚’è§£æ”¾ã™ã‚‹ã€ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆãã®ã‚‚ã®ãŒè§£æ”¾ã•ã‚Œã‚‹ã‚ã‘ã§ã¯ãªã„
+    // ã“ã‚Œã‚’å‘¼ã³å‡ºã™ã¨Contextç­‰ã¯è§£æ”¾ã•ã‚Œã‚‹ã®ã§å‚ç…§ã—ã¦ã¯è¡Œã‘ãªã„çŠ¶æ…‹ã«ãªã‚‹
+    void Dispose();
+
+    // ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆãŒæ‰€æœ‰ã—ã¦ã„ã‚‹ãƒ‡ãƒªã‚²ãƒ¼ãƒˆãŒæœ‰åŠ¹ã‹ã©ã†ã‹ã‚’è¿”ã™
+    // trueã‚’è¿”ã—ã¦ã„ã‚‹é–“ã¯ç™»éŒ²ã—ãŸãƒ‡ãƒªã‚²ãƒ¼ãƒˆã‚’å‘¼ã³å‡ºã—ã¦ã‚ˆã„
+    // falseã‚’è¿”ã—ãŸãªã‚‰é€Ÿã‚„ã‹ã«ã“ã®ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’Releaseã™ã‚‹ã“ã¨ãŒæœ›ã¾ã‚Œã‚‹(äºŒé‡é–‹æ”¾ã—ãªã„ã‚ˆã†æ³¨æ„)
+    bool IsExists() const { return exists; }
+
+    SU_DEF_SETARG_BEGIN;
+    SU_DEF_SETARG_ALL(context);
+    SU_DEF_SETARG_END;
 };

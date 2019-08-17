@@ -6,12 +6,16 @@ class Play : CoroutineScene {
   Font@ font32, font64, fontLatin;
   ScenePlayer@ player;
   CharacterInfo charinfo;
-  
+  TextSprite@ txtCombo;
+
+  double judgeLineBegin, judgeLineWidth;
+  double judgeLineY;
+
   void Initialize() {
     LoadResources();
     ExecuteScene(charinfo);
   }
-  
+
   void Run() {
     RunCoroutine(Coroutine(RunPlayer), "Player:RunPlayer");
     RunCoroutine(Coroutine(Main), "Player:Main");
@@ -19,11 +23,11 @@ class Play : CoroutineScene {
     YieldTime(1);
     while(true) YieldTime(30);
   }
-  
+
   void Draw() {
-    
+
   }
-  
+
   void LoadResources() {
     @skin = GetSkin();
     @fontLatin = skin.GetFont("Latin128");
@@ -35,13 +39,17 @@ class Play : CoroutineScene {
     @imgGBBack = skin.GetImage("GaugeBarBack");
     @imgGBFill = skin.GetImage("GaugeBarFill");
     @imgGBFront = skin.GetImage("GaugeBarFront");
+    @imgJC = skin.GetImage("JusticeCritical");
+    @imgJ = skin.GetImage("Justice");
+    @imgA = skin.GetImage("Attack");
+    @imgM = skin.GetImage("Miss");
+    if(!IsMoverFunctionRegistered("txtCombo_scale")) {
+      RegisterMoverFunction("txtCombo_scale", "1.63265*(1.0625-pow(progress - 0.5, 4))");
+    }
   }
-  
+
   void SetPlayerResource() {
-    player.SetResource("LaneGround", skin.GetImage("*Lane-Ground"));
-    player.SetResource("LaneJudgeLine", skin.GetImage("*Lane-JudgeLine"));
     player.SetResource("LaneHoldLight", skin.GetImage("*Lane-HoldLight"));
-    player.SetResource("FontCombo", skin.GetFont("Combo192"));
     player.SetResource("Tap", skin.GetImage("*Note-Tap"));
     player.SetResource("ExTap", skin.GetImage("*Note-ExTap"));
     player.SetResource("Air", skin.GetImage("*Note-Air"));
@@ -73,13 +81,62 @@ class Play : CoroutineScene {
     player.SetResource("EffectAirAction", skin.GetAnime("*Anime-AirAction"));
     player.SetResource("EffectSlideTap", skin.GetAnime("*Anime-SlideTap"));
     player.SetResource("EffectSlideLoop", skin.GetAnime("*Anime-SlideLoop"));
+
+    Container@ ctnLane = Container();
+    player.SetLaneSprite(ctnLane);
+
+    {
+      Sprite@ sp = Sprite(skin.GetImage("*Lane-Ground"));
+      sp.Apply("x:0, y:0, z:0");
+      ctnLane.AddChild(sp);
+    }
+
+    @txtCombo = TextSprite(skin.GetFont("Combo192"), "");
+    txtCombo.Apply("x:512, y:3200, z:1, r:255, g:255, b:255");
+    txtCombo.SetAlignment(TextAlign::Center, TextAlign::Center);
+    ctnLane.AddChild(txtCombo);
+
+    {
+      dictionary dict = {
+        { "z", 1 },
+        { "r", 255 },
+        { "g", 255 },
+        { "b", 255 },
+        { "width", 2 },
+        { "height", 4224 }
+      };
+      int divcnt = parseInt(GetSettingItem("Graphic", "DivisionLine").GetItemText());
+      for(int i=0; i<=divcnt; ++i) {
+        Shape@ line = Shape();
+        line.Apply(dict);
+        line.Type = ShapeType::BoxFill;
+        line.SetPosition(1024*i/divcnt, 2112);
+        ctnLane.AddChild(line);
+      }
+    }
+
+    {
+	    ScenePlayerMetrics metrics;
+	    player.GetMetrics(metrics);
+	    Image@ imgLine = skin.GetImage("*Lane-JudgeLine");
+      Sprite@ sp = Sprite(imgLine);
+      sp.Apply("x:0, y:3840, z:3, origY:"+(imgLine.Height/2));
+      ctnLane.AddChild(sp);
+    }
   }
-  
+
   void RunPlayer() {
     @player = ScenePlayer();
     SetPlayerResource();
     player.Initialize();
-    // player.SetJudgeCallback(JudgeCallback(OnJudge));
+
+	  ScenePlayerMetrics metrics;
+	  player.GetMetrics(metrics);
+	  judgeLineBegin = metrics.JudgeLineLeftX + (1280 / 2);
+	  judgeLineWidth = metrics.JudgeLineRightX - metrics.JudgeLineLeftX;
+	  judgeLineY = metrics.JudgeLineLeftY;
+
+    player.SetJudgeCallback(JudgeCallback(OnJudge));
     charinfo.InitInfo(player.GetCharacterInstance());
     player.Z = 5;
     AddSprite(player);
@@ -91,7 +148,7 @@ class Play : CoroutineScene {
     YieldTime(5);
     player.Play();
   }
-  
+
   Sprite@ spTopCover, spBack, spCustomBack;
   array<Sprite@> spGaugeCounts(10);
   Sprite@ spBarBack, spBarFront;
@@ -107,32 +164,32 @@ class Play : CoroutineScene {
     @txtMaxCombo = TextSprite(font64, "0");
     txtMaxCombo.Apply("x:630, y:8, scaleX: 0.6, scaleY: 0.6, z:15");
     txtMaxCombo.SetAlignment(TextAlign::Right, TextAlign::Top);
-    
+
     @txtMaxComboInfo = TextSprite(font64, "Max Combo");
     txtMaxComboInfo.Apply("x:390, y:10, scaleX: 0.5, scaleY: 0.5, z:15");
-    
+
     @txtScore = TextSprite(font64, "0");
     txtScore.Apply("x:890, y:8, scaleX: 0.6, scaleY: 0.6, z:15");
     txtScore.SetAlignment(TextAlign::Right, TextAlign::Top);
-    
+
     @txtScoreInfo = TextSprite(font64, "Score");
     txtScoreInfo.Apply("x:650, y:10, scaleX: 0.5, scaleY: 0.5, z:15");
-    
+
     @txtLevel = TextSprite(font64, "");
     txtLevel.Apply("x:1276, y: -8, z: 15");
     txtLevel.SetAlignment(TextAlign::Right, TextAlign::Top);
-    
+
     @txtTitle = TextSprite(font64, "");
     txtTitle.Apply("x:1008, y: 26, z: 151");
     txtTitle.SetRangeScroll(240, 20, 32);
-    
+
     @txtArtist = TextSprite(font32, "");
     txtArtist.Apply("x: 1008, y: 74, z: 15");
     txtArtist.SetRangeScroll(240, 20, 32);
-    
+
     @spJacket = SynthSprite(640, 640);
     spJacket.Apply("x: 908, y: 4, z: 15, scaleX: 0.15, scaleY: 0.15");
-    
+
     @spJudges = SynthSprite(768, 24);
     spJudges.Transfer(skin.GetImage("JudgeJC"), 0, 0);
     spJudges.Transfer(skin.GetImage("JudgeJ"), 192, 0);
@@ -164,7 +221,7 @@ class Play : CoroutineScene {
     spBarBack.Apply("x:384, y:40, z:15, scaleY: 0.75");
     spBarFill.Apply("x:384, y:40, z:16, scaleY: 0.75");
     spBarFront.Apply("x:384, y:40, z:17, scaleY: 0.75");
-    
+
     AddSprite(spBack);
     AddSprite(spTopCover);
     AddSprite(txtMaxCombo);
@@ -181,27 +238,36 @@ class Play : CoroutineScene {
     AddSprite(spBarBack);
     AddSprite(spBarFill);
     AddSprite(spBarFront);
-    
+
     DrawableResult dsNow, dsPrev;
+    MoverObject @txtComboMover = MoverObject();
+    txtComboMover.Apply("time:0.2, func:txtCombo_scale");
     while(true) {
       player.GetCurrentResult(dsNow);
       if (dsNow.FulfilledGauges > dsPrev.FulfilledGauges) {
         if (dsNow.FulfilledGauges > 10) {
           // TODO: 満杯のときの処理
         } else {
-          for(int i = dsPrev.FulfilledGauges; i < dsNow.FulfilledGauges; i++) {
+          for(uint i = dsPrev.FulfilledGauges; i < dsNow.FulfilledGauges; i++) {
             spGaugeCounts[i].SetImage(imgGCFull);
             spGaugeCounts[i].Apply("scaleX:0.8");
-            spGaugeCounts[i].AddMove("scale_to(x:0.5, y:0.3, time:0.3)");
+            spGaugeCounts[i].AddMove("scaleX:{end:0.5, time:0.3}");
+            spGaugeCounts[i].AddMove("scaleY:{end:0.3, time:0.3}");
           }
         }
       }
       if (dsNow.CurrentGaugeRatio != dsPrev.CurrentGaugeRatio) {
-        spBarFill.AddMove("range_size(x:" + formatFloat(dsNow.CurrentGaugeRatio, '', 1, 4) + ", y:1, time:0.1, ease:out_sine)");
+        spBarFill.AddMove("u2:{end:" + dsNow.CurrentGaugeRatio + ", time:0.1, func:out_sine}");
         txtScore.SetText(formatInt(dsNow.Score, "", 8));
       }
       if (dsNow.MaxCombo != dsPrev.MaxCombo) txtMaxCombo.SetText(formatInt(dsNow.MaxCombo, "", 5));
-      
+      if (dsNow.Combo > dsPrev.Combo && dsNow.Combo >= 5) {
+        txtCombo.SetText("" + dsNow.Combo);
+        txtCombo.AbortMove(true);
+        txtCombo.AddMove("scale", txtComboMover);
+      }
+
+
       spCounts[0].SetText("" + dsNow.JusticeCritical);
       spCounts[1].SetText("" + dsNow.Justice);
       spCounts[2].SetText("" + dsNow.Attack);
@@ -210,7 +276,7 @@ class Play : CoroutineScene {
       YieldFrame(1);
     }
   }
-  
+
   void SetMusicInfo() {
     Image@ jacket = Image(GetStringData("Player:Jacket"));
     spJacket.Transfer(jacket, 0, 0);
@@ -218,7 +284,7 @@ class Play : CoroutineScene {
     txtArtist.SetText(GetStringData("Player:Artist"));
     txtLevel.SetText("" + GetIntData("Player:Level"));
   }
-  
+
   bool isPausing;
   void KeyInput() {
     while(true) {
@@ -245,11 +311,11 @@ class Play : CoroutineScene {
       if (IsKeyTriggered(Key::INPUT_R) && IsKeyHeld(Key::INPUT_LCONTROL)) {
         player.Reload();
       }
-      
+
       YieldFrame(1);
     }
   }
-  
+
   void OnEvent(const string &in event) {
     if (event == "Player:Ready") {
       // 背景があればそっと差し替える
@@ -258,22 +324,48 @@ class Play : CoroutineScene {
       WriteLog(Severity::Info, "カスタム背景: " + path);
       @spCustomBack = Sprite(Image(path));
       spCustomBack.Apply("z:-29");
-      
+
       AddSprite(spCustomBack);
-      spBack.AddMove("alpha(x:1, y:0, time:1)");
-      spCustomBack.AddMove("alpha(x:0, y:1, time:1)");
-      spBack.AddMove("death(wait:1)");
+      spBack.AddMove("alpha:{begin:1, end:0, time:1}");
+      spCustomBack.AddMove("alpha:{begin:0, end:1, time:1}");
+      spBack.AddMove("death:{wait:1}");
     }
   }
-  
-  /*
+
   // 判定発生ごとに呼ばれるコールバック
   // judgeにはJC/J/A/Mの情報が入ります
-  void OnJudge(JudgeType judge, NoteType note) {
-    if (note != NoteType::ExTap) return;
-    WriteLog(Severiy::Info, "ExTap");
+  Image@ imgJC, imgJ, imgA, imgM;
+  void OnJudge(JudgeType judge, JudgeData data, const string &in ex) {
+  	Sprite@ sp;
+  	switch (judge) {
+  	  case JudgeType::JusticeCritical:
+  	    @sp = Sprite(imgJC);
+  	    break;
+  	  case JudgeType::Justice:
+  	    @sp = Sprite(imgJ);
+  	    break;
+  	  case JudgeType::Attack:
+  	    @sp = Sprite(imgA);
+  	    break;
+  	  case JudgeType::Miss:
+  	    @sp = Sprite(imgM);
+  	    break;
+  	}
+  	sp.Apply(dictionary = {
+      { "x", judgeLineBegin + judgeLineWidth / 16 * (data.Left + (data.Right - data.Left) / 2) },
+      { "y" , judgeLineY - 170 },
+      { "z", 10 },
+      { "origX", 96 },
+      { "origY", 32 },
+      { "scaleX", 0.5 },
+      { "scaleY", 0.5 },
+      { "alpha", 0 }
+    });
+  	sp.AddMove("y:{@end:-150, time:0.5, func:out_sine}");
+  	sp.AddMove("alpha:{begin:0.0, end:1.0, time:0.5}");
+  	sp.AddMove("death:{wait:0.6}");
+  	AddSprite(sp);
   }
-  */
 }
 
 class CharacterInfo : CoroutineScene {
@@ -282,44 +374,44 @@ class CharacterInfo : CoroutineScene {
   Container@ container;
   Sprite@ spBack, spCharacter, spIcon;
   TextSprite@ spSkill, spDescription;
-  
+
   void Initialize() {
     @skin = GetSkin();
     // InitInfo();
     InitReady();
   }
-  
+
   void InitInfo(CharacterInstance@ ci) {
     auto si = ci.GetSkillIndicators();
     si.SetCallback(SkillCallback(OnSkill));
-    
+
     @container = Container();
     @spBack = Sprite(skin.GetImage("CharacterBack"));
     spBack.Apply("z:-1");
-    
+
     @spCharacter = Sprite();
     spCharacter.Apply("x:8, y: 6");
     ci.GetCharacterImages().ApplySmallImage(spCharacter);
-    
+
     @spSkill = TextSprite(skin.GetFont("Normal32"), "");
     spSkill.Apply("x:11, y: 180, r: 0, g: 0, b: 0, scaleX: 0.75, scaleY: 0.75");
     spSkill.SetText(ci.GetSkill().Name);
-    
+
     @spDescription = TextSprite(skin.GetFont("Normal32"), "");
     spDescription.Apply("x:11, y: 208, r: 0, g: 0, b: 0, scaleX: 0.5, scaleY: 0.5");
-    spDescription.SetText(ci.GetSkill().Description);
+    spDescription.SetText(ci.GetSkill().GetDescription(0));
     spDescription.SetRich(true);
-    
+
     container.AddChild(spBack);
     container.AddChild(spCharacter);
     container.AddChild(spSkill);
     container.AddChild(spDescription);
-    
+
     @spIcon = Sprite();
     spIcon.SetImage(Image(ci.GetSkill().IconPath));
     spIcon.Apply("x:217, y:180, scaleX:0.75, scaleY:0.75");
     container.AddChild(spIcon);
-    
+
     int ic = si.GetIndicatorCount();
     for(int i = 0; i < ic; i++) {
       Sprite@ icon = Sprite(si.GetIndicatorImage(i));
@@ -328,67 +420,67 @@ class CharacterInfo : CoroutineScene {
       icons.insertLast(icon);
       container.AddChild(icon);
     }
-    
+
     container.Apply("x:-296, y: 110, z:30");
     AddSprite(container);
   }
-  
+
   Sprite@ spReadyBack, spReadyFront;
   TextSprite@ spReady;
   void InitReady() {
     @spReadyBack = Sprite(skin.GetImage("Ready1"));
     spReadyBack.Apply("origX:640, origY:72, x:640, y:360, z:40, scaleY:0");
-    
+
     @spReadyFront = Sprite(skin.GetImage("Ready2"));
     spReadyFront.Apply("origY:72, x:-1280, y:360, z:41");
-    
+
     @spReady = TextSprite(skin.GetFont("Normal64"), "ARE YOU READY?");
     spReady.SetAlignment(TextAlign::Center, TextAlign::Center);
     spReady.Apply("x:640, y:360, z:41, scaleX:0");
-    
+
     AddSprite(spReadyBack);
     AddSprite(spReadyFront);
     AddSprite(spReady);
   }
-  
+
   void ReadyString() {
-    spReady.AddMove("scale_to(x:1.4, y:1.4, time:0.3, wait:0.7, ease:out_back)");
-    spReady.AddMove("scale_to(x:1.4, y:0, time:0.1, wait:2.0, ease:out_sine)");
+    spReady.AddMove("scale:{end:1.4, time:0.3, wait:0.7, func:out_back}");
+    spReady.AddMove("scaleY:{end:0, time:0.1, wait:2.0, func:out_sine}");
     YieldTime(2.1);
     spReady.SetText("START!");
-    spReady.AddMove("scale_to(x:1.4, y:1.4, time:0.3, wait:0.7, ease:out_back)");
-    spReady.AddMove("scale_to(x:4, y:1.4, time:0.5, wait:2, ease:out_sine)");
-    spReady.AddMove("alpha(x:1, y:0, time:0.5, wait:2)");
-    spReady.AddMove("death(wait:2.5)");
+    spReady.AddMove("scale:{end:1.4, time:0.3, wait:0.7, func:out_back}");
+    spReady.AddMove("scaleY:{end:1.4, time:0.5, wait:2, func:out_sine}");
+    spReady.AddMove("alpha:{begin:1, end:0, time:0.5, wait:2}");
+    spReady.AddMove("death:{wait:2.5}");
   }
-  
+
   void Run() {
     while(true) YieldFrame(100);
   }
-  
+
   void Draw() {
-    
+
   }
-  
+
   void OnSkill(int index) {
     auto target = icons[index];
     target.AbortMove(true);
     target.Apply("scaleX:0.3, scaleY: 0.3");
-    target.AddMove("scale_to(x:0.25, y:0.25, time: 0.2)");
+    target.AddMove("scale:{end:0.25, time: 0.2}");
   }
-  
+
   void OnEvent(const string &in event) {
     if (event == "Player:End") Disappear();
     if (event == "Player:Ready") {
-      container.AddMove("move_by(x:296, time:0.5, ease:out_quad)");
-      spReadyBack.AddMove("scale_to(x:1, y:1, time:0.3, ease:out_sine)");
-      spReadyFront.AddMove("move_by(x:1280, time:0.5, wait:0.3, ease:out_sine)");
+      container.AddMove("x:{@end:296, time:0.5, func:out_quad}");
+      spReadyBack.AddMove("scale:{end:1, time:0.3, func:out_sine}");
+      spReadyFront.AddMove("x:{@end:1280, time:0.5, wait:0.3, func:out_sine}");
       RunCoroutine(Coroutine(ReadyString), "CharInfo:Ready");
       // 4.1秒後にフェードアウト開始
-      spReadyBack.AddMove("scale_to(x:1, y:0, time:0.3, wait:4.1, ease:in_back)");
-      spReadyFront.AddMove("alpha(x:1, y:0, time:0.3, wait:4.1)");
-      spReadyBack.AddMove("death(wait:4.4)");
-      spReadyFront.AddMove("death(wait:4.4)");
+      spReadyBack.AddMove("scaleY:{end:0, time:0.3, wait:4.1, func:in_back}");
+      spReadyFront.AddMove("alpha:{begin:1, end:0, time:0.3, wait:4.1}");
+      spReadyBack.AddMove("death:{wait:4.4}");
+      spReadyFront.AddMove("death:{wait:4.4}");
     }
   }
 }

@@ -40,9 +40,6 @@
     <Filter Include="コントローラー">
       <UniqueIdentifier>{6814a1c8-b90e-4020-9381-3099759babcb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="コントローラー\依存">
-      <UniqueIdentifier>{10ac2997-3d62-4b33-bb73-ed4bf0e4431c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="インターフェース\キャラクター">
       <UniqueIdentifier>{5af0c5d5-f49f-4873-b9fb-b663b84c46ab}</UniqueIdentifier>
     </Filter>
@@ -56,21 +53,6 @@
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\AngelScript\add_on\scriptstdstring\scriptstdstring.cpp">
-      <Filter>AngelScript</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\AngelScript\add_on\scriptstdstring\scriptstdstring_utils.cpp">
-      <Filter>AngelScript</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\AngelScript\add_on\scriptmath\scriptmath.cpp">
-      <Filter>AngelScript</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\AngelScript\add_on\scriptmath\scriptmathcomplex.cpp">
-      <Filter>AngelScript</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\AngelScript\add_on\scriptarray\scriptarray.cpp">
-      <Filter>AngelScript</Filter>
     </ClCompile>
     <ClCompile Include="Debug.cpp">
       <Filter>ソース ファイル</Filter>
@@ -105,9 +87,6 @@
     <ClCompile Include="ScriptFunction.cpp">
       <Filter>インターフェース\AngelScript</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\AngelScript\add_on\scriptdictionary\scriptdictionary.cpp">
-      <Filter>AngelScript</Filter>
-    </ClCompile>
     <ClCompile Include="MusicsManager.cpp">
       <Filter>インターフェース\C++</Filter>
     </ClCompile>
@@ -125,9 +104,6 @@
     </ClCompile>
     <ClCompile Include="Controller.cpp">
       <Filter>コントローラー</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\Wacom_Feel_SDK\src\cpp\WacomMultiTouch.cpp">
-      <Filter>コントローラー\依存</Filter>
     </ClCompile>
     <ClCompile Include="ScenePlayer.Draw.cpp">
       <Filter>プレーヤー</Filter>
@@ -171,46 +147,37 @@
     <ClCompile Include="CharacterInstance.cpp">
       <Filter>インターフェース\キャラクター</Filter>
     </ClCompile>
-    <ClCompile Include="ScriptSpriteMover2.cpp">
-      <Filter>インターフェース\描画システム</Filter>
-    </ClCompile>
     <ClCompile Include="Easing.cpp">
       <Filter>インターフェース\描画システム</Filter>
     </ClCompile>
-    <ClCompile Include="MoverFunction.cpp">
+    <ClCompile Include="..\library\angelscript\add_on\scriptarray\scriptarray.cpp">
+      <Filter>AngelScript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\library\angelscript\add_on\scriptdictionary\scriptdictionary.cpp">
+      <Filter>AngelScript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\library\angelscript\add_on\scriptmath\scriptmath.cpp">
+      <Filter>AngelScript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\library\angelscript\add_on\scriptmath\scriptmathcomplex.cpp">
+      <Filter>AngelScript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\library\angelscript\add_on\scriptstdstring\scriptstdstring.cpp">
+      <Filter>AngelScript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\library\angelscript\add_on\scriptstdstring\scriptstdstring_utils.cpp">
+      <Filter>AngelScript</Filter>
+    </ClCompile>
+    <ClCompile Include="MoverFunctionExpression.cpp">
+      <Filter>インターフェース\描画システム</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptSpriteMover.cpp">
       <Filter>インターフェース\描画システム</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Main.h">
       <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DXLib\include\DxCompileConfig.h">
-      <Filter>DxLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DXLib\include\DxDataType.h">
-      <Filter>DxLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DXLib\include\DxDataTypeWin.h">
-      <Filter>DxLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DXLib\include\DxFunctionWin.h">
-      <Filter>DxLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DXLib\include\DxLib.h">
-      <Filter>DxLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\AngelScript\add_on\scriptstdstring\scriptstdstring.h">
-      <Filter>AngelScript</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\AngelScript\add_on\scriptmath\scriptmath.h">
-      <Filter>AngelScript</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\AngelScript\add_on\scriptmath\scriptmathcomplex.h">
-      <Filter>AngelScript</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\AngelScript\add_on\scriptarray\scriptarray.h">
-      <Filter>AngelScript</Filter>
     </ClInclude>
     <ClInclude Include="Config.h">
       <Filter>ヘッダー ファイル</Filter>
@@ -250,9 +217,6 @@
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\AngelScript\add_on\scriptdictionary\scriptdictionary.h">
-      <Filter>AngelScript</Filter>
     </ClInclude>
     <ClInclude Include="PrecompiledHeader.h">
       <Filter>ヘッダー ファイル</Filter>
@@ -314,13 +278,43 @@
     <ClInclude Include="Crc32.h">
       <Filter>ヘッダー ファイル\ライブラリ</Filter>
     </ClInclude>
-    <ClInclude Include="ScriptSpriteMover2.h">
-      <Filter>インターフェース\描画システム</Filter>
-    </ClInclude>
     <ClInclude Include="Easing.h">
       <Filter>インターフェース\描画システム</Filter>
     </ClInclude>
-    <ClInclude Include="MoverFunction.h">
+    <ClInclude Include="..\library\dxlib\include\DxCompileConfig.h">
+      <Filter>DxLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\dxlib\include\DxDataType.h">
+      <Filter>DxLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\dxlib\include\DxFunctionWin.h">
+      <Filter>DxLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\dxlib\include\DxDataTypeWin.h">
+      <Filter>DxLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\dxlib\include\DxLib.h">
+      <Filter>DxLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\angelscript\add_on\scriptarray\scriptarray.h">
+      <Filter>AngelScript</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\angelscript\add_on\scriptdictionary\scriptdictionary.h">
+      <Filter>AngelScript</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\angelscript\add_on\scriptmath\scriptmath.h">
+      <Filter>AngelScript</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\angelscript\add_on\scriptmath\scriptmathcomplex.h">
+      <Filter>AngelScript</Filter>
+    </ClInclude>
+    <ClInclude Include="..\library\angelscript\add_on\scriptstdstring\scriptstdstring.h">
+      <Filter>AngelScript</Filter>
+    </ClInclude>
+    <ClInclude Include="MoverFunctionExpression.h">
+      <Filter>インターフェース\描画システム</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptSpriteMover.h">
       <Filter>インターフェース\描画システム</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "ScriptSprite.h"
 
@@ -39,6 +39,7 @@ private:
 public:
     void AddRef() { reference++; }
     void Release() { if (--reference == 0) delete this; }
+    int GetRefCount() const { return reference; }
     explicit CharacterImageSet(std::shared_ptr<CharacterParameter> param);
     ~CharacterImageSet();
 
@@ -54,7 +55,6 @@ class ExecutionManager;
 
 class CharacterManager final {
 private:
-    ExecutionManager * manager;
     std::vector<std::shared_ptr<CharacterParameter>> characters;
 
     int selected;
@@ -62,7 +62,7 @@ private:
     void LoadFromToml(const boost::filesystem::path& file);
 
 public:
-    explicit CharacterManager(ExecutionManager *exm);
+    explicit CharacterManager();
 
     void LoadAllCharacters();
 
@@ -71,6 +71,8 @@ public:
     CharacterParameter* GetCharacterParameter(int relative);
     std::shared_ptr<CharacterParameter> GetCharacterParameterSafe(int relative);
     CharacterImageSet* CreateCharacterImages(int relative);
+
+    int32_t GetSize() const;
 };
 
 void RegisterCharacterTypes(asIScriptEngine *engine);

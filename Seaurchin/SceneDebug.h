@@ -1,9 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include "Scene.h"
 
-class SceneDebug final : public Scene
-{
+class SceneDebug final : public Scene {
 private:
     int call = 0;
     double calc = 0;

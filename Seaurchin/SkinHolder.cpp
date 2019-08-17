@@ -1,4 +1,4 @@
-#include "SkinHolder.h"
+Ôªø#include "SkinHolder.h"
 #include "Setting.h"
 #include "ExecutionManager.h"
 #include "Config.h"
@@ -6,18 +6,18 @@
 using namespace std;
 using namespace boost::filesystem;
 
+// ReSharper disable once CppParameterNeverUsed
 bool SkinHolder::IncludeScript(std::wstring include, std::wstring from, CWScriptBuilder *builder)
 {
     return false;
 }
 
 SkinHolder::SkinHolder(const wstring &name, const shared_ptr<AngelScript> &script, const std::shared_ptr<SoundManager>& sound)
-{
-    scriptInterface = script;
-    soundInterface = sound;
-    skinName = name;
-    skinRoot = Setting::GetRootDirectory() / SU_DATA_DIR / SU_SKIN_DIR / skinName;
-}
+    : scriptInterface(script)
+    , soundInterface(sound)
+    , skinName(name)
+    , skinRoot(Setting::GetRootDirectory() / SU_DATA_DIR / SU_SKIN_DIR / skinName)
+{}
 
 SkinHolder::~SkinHolder()
 = default;
@@ -44,7 +44,7 @@ void SkinHolder::Initialize()
         break;
     }
     if (!ep) {
-        log->critical(u8"ÉXÉLÉìÇ…EntryPointÇ™Ç†ÇËÇ‹ÇπÇÒ");
+        log->critical(u8"„Çπ„Ç≠„É≥„Å´EntryPoint„Åå„ÅÇ„Çä„Åæ„Åõ„Çì");
         mod->Discard();
         return;
     }
@@ -59,19 +59,26 @@ void SkinHolder::Initialize()
 
 void SkinHolder::Terminate()
 {
+    // ReSharper disable CppDeclaratorNeverUsed
+    for (const auto &it : images) BOOST_ASSERT(it.second->GetRefCount() == 1);
+    for (const auto &it : sounds) BOOST_ASSERT(it.second->GetRefCount() == 1);
+    for (const auto &it : fonts) BOOST_ASSERT(it.second->GetRefCount() == 1);
+    for (const auto &it : animatedImages) BOOST_ASSERT(it.second->GetRefCount() == 1);
+    // ReSharper restore CppDeclaratorNeverUsed
+
     for (const auto &it : images) it.second->Release();
     for (const auto &it : sounds) it.second->Release();
     for (const auto &it : fonts) it.second->Release();
     for (const auto &it : animatedImages) it.second->Release();
 }
 
-asIScriptObject* SkinHolder::ExecuteSkinScript(const wstring &file)
+asIScriptObject* SkinHolder::ExecuteSkinScript(const wstring &file, const bool forceReload)
 {
     auto log = spdlog::get("main");
-    //Ç®íÉÇë˜Çπ
+    //„ÅäËå∂„ÇíÊøÅ„Åõ
     const auto modulename = ConvertUnicodeToUTF8(file);
     auto mod = scriptInterface->GetExistModule(modulename);
-    if (!mod) {
+    if (!mod || forceReload) {
         scriptInterface->StartBuildModule(modulename,
             [this](wstring inc, wstring from, CWScriptBuilder *b) {
             if (!exists(skinRoot / SU_SCRIPT_DIR / inc)) return false;
@@ -86,48 +93,74 @@ asIScriptObject* SkinHolder::ExecuteSkinScript(const wstring &file)
         mod = scriptInterface->GetLastModule();
     }
 
-    //ÉGÉìÉgÉäÉ|ÉCÉìÉgåüçı
+    //„Ç®„É≥„Éà„É™„Éù„Ç§„É≥„ÉàÊ§úÁ¥¢
     const int cnt = mod->GetObjectTypeCount();
     asITypeInfo *type = nullptr;
     for (auto i = 0; i < cnt; i++) {
-        // ScriptBuilderÇÃMetaDataÇÃÉeÅ[ÉuÉãÇÕñàâÒîjä¸Ç≥ÇÍÇÈÇÃÇ≈
-        // asITypeInfoÇ…èÓïÒÇï€éù
+        // ScriptBuilder„ÅÆMetaData„ÅÆ„ÉÜ„Éº„Éñ„É´„ÅØÊØéÂõûÁ†¥Ê£Ñ„Åï„Çå„Çã„ÅÆ„Åß
+        // asITypeInfo„Å´ÊÉÖÂ†±„Çí‰øùÊåÅ
         const auto cti = mod->GetObjectTypeByIndex(i);
         if (!(scriptInterface->CheckMetaData(cti, "EntryPoint") || cti->GetUserData(SU_UDTYPE_ENTRYPOINT))) continue;
         type = cti;
         type->SetUserData(reinterpret_cast<void*>(0xFFFFFFFF), SU_UDTYPE_ENTRYPOINT);
-        type->AddRef();
         break;
     }
     if (!type) {
-        log->critical(u8"ÉXÉLÉìÇ…EntryPointÇ™Ç†ÇËÇ‹ÇπÇÒ");
+        log->critical(u8"„Çπ„Ç≠„É≥„Å´EntryPoint„Åå„ÅÇ„Çä„Åæ„Åõ„Çì");
         return nullptr;
     }
 
     auto obj = scriptInterface->InstantiateObject(type);
     obj->SetUserData(this, SU_UDTYPE_SKIN);
-    type->Release();
     return obj;
 }
 
 void SkinHolder::LoadSkinImage(const string &key, const string &filename)
 {
+    if (images[key]) images[key]->Release();
     images[key] = SImage::CreateLoadedImageFromFile(ConvertUnicodeToUTF8((skinRoot / SU_IMAGE_DIR / ConvertUTF8ToUnicode(filename)).wstring()), false);
+}
+
+void SkinHolder::LoadSkinImageFromMem(const string &key, void *buffer, const size_t size)
+{
+    if (images[key]) images[key]->Release();
+    images[key] = SImage::CreateLoadedImageFromMemory(buffer, size);
 }
 
 void SkinHolder::LoadSkinFont(const string &key, const string &filename)
 {
+    if (fonts[key]) fonts[key]->Release();
     fonts[key] = SFont::CreateLoadedFontFromFile(ConvertUnicodeToUTF8((skinRoot / SU_FONT_DIR / ConvertUTF8ToUnicode(filename)).wstring()));
+}
+
+void SkinHolder::LoadSkinFontFromMem(const string &key, void *buffer, const size_t size)
+{
+    //if (fonts[key]) fonts[key]->Release();
+    //images[key] = SFont::CreateLoadedFontFromMemory(buffer, size);
 }
 
 void SkinHolder::LoadSkinSound(const std::string & key, const std::string & filename)
 {
+    if (sounds[key]) sounds[key]->Release();
     sounds[key] = SSound::CreateSoundFromFile(soundInterface.get(), ConvertUnicodeToUTF8((skinRoot / SU_SOUND_DIR / ConvertUTF8ToUnicode(filename)).wstring()), 1);
+}
+
+void SkinHolder::LoadSkinSoundFromMem(const string &key, const void *buffer, const size_t size)
+{
+    //if (sounds[key]) sounds[key]->Release();
+    //images[key] = SSound::CreateLoadedSoundFromMemory(buffer, size, 1);
 }
 
 void SkinHolder::LoadSkinAnime(const std::string & key, const std::string & filename, const int x, const int y, const int w, const int h, const int c, const double time)
 {
+    if (animatedImages[key]) animatedImages[key]->Release();
     animatedImages[key] = SAnimatedImage::CreateLoadedImageFromFile(ConvertUnicodeToUTF8((skinRoot / SU_IMAGE_DIR / ConvertUTF8ToUnicode(filename)).wstring()), x, y, w, h, c, time);
+}
+
+void SkinHolder::LoadSkinAnimeFromMem(const string &key, void *buffer, const size_t size, const int x, const int y, const int w, const int h, const int c, const double time)
+{
+    if (animatedImages[key]) animatedImages[key]->Release();
+    images[key] = SAnimatedImage::CreateLoadedImageFromMemory(buffer, size, x, y, w, h, c, time);
 }
 
 SImage* SkinHolder::GetSkinImage(const string &key)
@@ -166,11 +199,23 @@ void RegisterScriptSkin(ExecutionManager *exm)
 {
     auto engine = exm->GetScriptInterfaceUnsafe()->GetEngine();
 
+#ifdef  _WIN64
+    engine->RegisterTypedef(SU_IF_SIZE, "uint64");
+    engine->RegisterTypedef(SU_IF_VOID_PTR, "uint64");
+#else
+    engine->RegisterTypedef(SU_IF_SIZE, "uint32");
+    engine->RegisterTypedef(SU_IF_VOID_PTR, "uint32");
+#endif
+
     engine->RegisterObjectType(SU_IF_SKIN, 0, asOBJ_REF | asOBJ_NOCOUNT);
     engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadImage(const string &in, const string &in)", asMETHOD(SkinHolder, LoadSkinImage), asCALL_THISCALL);
+    engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadImageFromMem(const string &in, " SU_IF_VOID_PTR ", " SU_IF_SIZE ")", asMETHOD(SkinHolder, LoadSkinImageFromMem), asCALL_THISCALL);
     engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadFont(const string &in, const string &in)", asMETHOD(SkinHolder, LoadSkinFont), asCALL_THISCALL);
+    //engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadFontFromMem(const string &in, " SU_IF_VOID_PTR ", " SU_IF_SIZE ")", asMETHOD(SkinHolder, LoadSkinFontFromMem), asCALL_THISCALL);
     engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadSound(const string &in, const string &in)", asMETHOD(SkinHolder, LoadSkinSound), asCALL_THISCALL);
+    //engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadSoundFromMem(const string &in, " SU_IF_VOID_PTR ", " SU_IF_SIZE ")", asMETHOD(SkinHolder, LoadSkinSoundFromMem), asCALL_THISCALL);
     engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadAnime(const string &in, const string &in, int, int, int, int, int, double)", asMETHOD(SkinHolder, LoadSkinAnime), asCALL_THISCALL);
+    engine->RegisterObjectMethod(SU_IF_SKIN, "void LoadAnimeFromMem(const string &in, " SU_IF_VOID_PTR ", " SU_IF_SIZE ", const string &in, int, int, int, int, int, double)", asMETHOD(SkinHolder, LoadSkinAnimeFromMem), asCALL_THISCALL);
     engine->RegisterObjectMethod(SU_IF_SKIN, SU_IF_IMAGE "@ GetImage(const string &in)", asMETHOD(SkinHolder, GetSkinImage), asCALL_THISCALL);
     engine->RegisterObjectMethod(SU_IF_SKIN, SU_IF_FONT "@ GetFont(const string &in)", asMETHOD(SkinHolder, GetSkinFont), asCALL_THISCALL);
     engine->RegisterObjectMethod(SU_IF_SKIN, SU_IF_SOUND "@ GetSound(const string &in)", asMETHOD(SkinHolder, GetSkinSound), asCALL_THISCALL);
@@ -179,18 +224,18 @@ void RegisterScriptSkin(ExecutionManager *exm)
     engine->RegisterGlobalFunction(SU_IF_SKIN "@ GetSkin()", asFUNCTION(GetSkinObject), asCALL_CDECL);
 }
 
-//ÉXÉLÉìêÍóp
+//„Çπ„Ç≠„É≥Â∞ÇÁî®
 SkinHolder* GetSkinObject()
 {
     auto ctx = asGetActiveContext();
     const auto obj = static_cast<asIScriptObject*>(ctx->GetThisPointer());
     if (!obj) {
-        ScriptSceneWarnOutOf("Instance Method", ctx);
+        ScriptSceneWarnOutOf("GetSkin", "Instance Method", ctx);
         return nullptr;
     }
     const auto skin = obj->GetUserData(SU_UDTYPE_SKIN);
     if (!skin) {
-        ScriptSceneWarnOutOf("Skin-Related Scene", ctx);
+        ScriptSceneWarnOutOf("GetSkin", "Skin-Related Scene", ctx);
         return nullptr;
     }
     return static_cast<SkinHolder*>(skin);

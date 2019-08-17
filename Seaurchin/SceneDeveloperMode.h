@@ -1,11 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "Scene.h"
 
-class SceneDeveloperMode final : public Scene
-{
+class SceneDeveloperMode final : public Scene {
 private:
-    
+
 public:
     SceneDeveloperMode();
     ~SceneDeveloperMode();
