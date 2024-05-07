@@ -1,7 +1,7 @@
-﻿# バージョン指定
+# バージョン指定
 $ANGELSCRIPT_VER = "2.32.0"
 $BOOST_VER = "1.68.0"
-$ZLIB_VER = "1.2.11"
+$ZLIB_VER = "1.3.1"
 $LIBPNG_VER = "1.6.34"
 $LIBJPEG_VER = "9c"
 $LIBOGG_VER = "1.3.3"
@@ -103,8 +103,8 @@ function getBin($url,$name) {
 }
 
 Set-Location "tmp"
-getBin "https://blogs.osdn.jp/2015/01/13/download/patch-2.5.9-7-bin.zip" "patch"
-getBin "https://ja.osdn.net/frs/redir.php?m=ymu&f=sevenzip%2F64455%2F7za920.zip" "7z"
+getBin "https://github.com/WinMerge/patch/releases/download/v2.5.9-7/patch-2.5.9-7-bin.zip" "patch"
+getBin "https://netcologne.dl.sourceforge.net/project/sevenzip/7-Zip/9.20/7za920.zip?viasf=1" "7z"
 getBin "http://ftp.vector.co.jp/52/68/2195/nkfwin.zip" "nkf"
 
 $PATCH = Resolve-Path ".\patch\bin\patch.exe"
@@ -232,11 +232,11 @@ if (!(Test-Path "freetype")) {
   Set-Location "$LIBRARY_PATH"
 }
 
-dlSource "https://rbjhjw.dm.files.1drv.com/y4mrerPw3Zd1tXLWrxQ2ubuFvPJkaniGX82gfkIIYnYJZNIepUOtHiMIAirmikXEyAppmwN3_V7UbdevmEpU5kdR20PEflO1RICwjrUuZcfB0CcarCHeQrNw6ex9qQyyDTJVfCVB4vixKXpucTsma2Q-N2C7tF7_YuN0vjfmoKs8aO-TNk3p-6xoVWGSUpTblwJshqDZPxeZPQlPdYdgf_I6Q/dxlib.7z?download&psid=1" "dxlib" "."
+dlSource "https://github.com/yumetodo/DxLib/archive/refs/heads/master.zip" "dxlib" "."
 dlSourceRename "https://github.com/gabime/spdlog/archive/v$SPDLOG_VER.zip" "spdlog" "spdlog-$SPDLOG_VER"
 dlSourceRename "https://github.com/fmtlib/fmt/releases/download/$FMT_VER/fmt-$FMT_VER.zip" "fmt" "fmt-$FMT_VER"
 
-dlSource "https://sljhjw.dm.files.1drv.com/y4m_ttflbSwtU5qSJt5J47yBqYztzuSzEdEnXb0Ce2BaO0wrf_hfA1pMcJJbOnv-_PtTzKc5OjE_iaCv0pHOqKqLwZIN0Qx0j6JiBNbWiv62IJPv4w5fSqBbr-106Biak3UE2qxNIwY2E0xcMJYwDA5oTsJlDWzeb8RhPzIvNqbEvG_ngusUWEN_KFxWAcK8T32/boost.7z?download&psid=1" "boost" "."
+dlSource "https://boostorg.jfrog.io/artifactory/main/release/1.64.0/source/boost_1_64_0.7z" "boost" "."
 dlSource "http://us.un4seen.com/files/bass24.zip" "bass24" "bass24"
 dlSource "http://us.un4seen.com/files/z/0/bass_fx24.zip" "bass24_fx" "bass24_fx"
 dlSource "http://us.un4seen.com/files/bassmix24.zip" "bass24_mix" "bass24_mix"
